@@ -1162,8 +1162,8 @@ class DataGenerator:
             if not (label_encoder is None or self.labels is None):
 
                 if ('matched_anchors' in returns) and isinstance(label_encoder, SSDInputEncoder):
-                    print("BATCH_Y: ",batch_y)
-                    print("BATCH_W: ",batch_w)
+                    # print("BATCH_Y: ",batch_y)
+                    # print("BATCH_W: ",batch_w)
                     batch_y_encoded, batch_matched_anchors = label_encoder(batch_y, diagnostics=True)
                     batch_y_encoded1, batch_matched_anchors1 = label_encoder(batch_w, diagnostics=True)
 
@@ -1171,8 +1171,8 @@ class DataGenerator:
 
                     # batch_matched_anchors_f = np.concatenate([batch_matched_anchors,batch_matched_anchors1])
                 else:
-                    print("BATCH_Y: ",batch_y)
-                    print("BATCH_W: ",batch_w)
+                    # print("BATCH_Y: ",batch_y)
+                    # print("BATCH_W: ",batch_w)
                     batch_y_encoded = label_encoder(batch_y, diagnostics=False)
                     batch_y_encoded1 = label_encoder(batch_w, diagnostics=False)
                     batch_matched_anchors = None

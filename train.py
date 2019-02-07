@@ -1,5 +1,5 @@
 from keras.optimizers import Adam, SGD
-from keras.callbacks import ModelCheckpoint, LearningRateScheduler, TerminateOnNaN, CSVLogger, EarlyStopping, TensorBoard
+from keras.callbacks import Callback, ModelCheckpoint, LearningRateScheduler, TerminateOnNaN, CSVLogger, EarlyStopping, TensorBoard
 from keras import backend as K
 from keras.models import load_model
 from math import ceil
@@ -223,7 +223,7 @@ def lr_schedule(epoch):
     else:
         return 0.00001
 
-class prediction_history(Callback):-
+class prediction_history(Callback):
     def __init__(self):
         print("Start Prediction")
         
@@ -279,6 +279,7 @@ early_stopping = EarlyStopping(monitor='val_loss',
                               patience=2,
                               verbose=0, mode='auto')
 terminate_on_nan = TerminateOnNaN()
+printer_callback = prediction_history()
 
 callbacks = [model_checkpoint,
              csv_logger,
