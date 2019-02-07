@@ -107,6 +107,37 @@ class ConvertTo3Channels:
         else:
             return image, labels
 
+class ConvertTo3Channels_Modified:
+    '''
+    Converts 1-channel and 4-channel images to 3-channel images. Does nothing to images that
+    already have 3 channels. In the case of 4-channel images, the fourth channel will be
+    discarded.
+    '''
+    def __init__(self):
+        pass
+
+    def __call__(self, image, labels, image1, labels1):
+        if image.ndim == 2:
+            image = np.stack([image] * 3, axis=-1)
+        elif image.ndim == 3:
+            if image.shape[2] == 1:
+                image = np.concatenate([image] * 3, axis=-1)
+            elif image.shape[2] == 4:
+                image = image[:,:,:3]
+
+        if image1.ndim == 2:
+            image1 = np.stack([image1] * 3, axis=-1)
+        elif image1.ndim == 3:
+            if image1.shape[2] == 1:
+                image1 = np.concatenate([image1] * 3, axis=-1)
+            elif image1.shape[2] == 4:
+                image1 = image1[:,:,:3]
+
+        if labels is None:
+            return image
+        else:
+            return image, labels, image1, labels1
+
 class Hue:
     '''
     Changes the hue of HSV images.

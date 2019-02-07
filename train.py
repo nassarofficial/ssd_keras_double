@@ -17,10 +17,13 @@ from ssd_encoder_decoder.ssd_input_encoder import SSDInputEncoder
 from ssd_encoder_decoder.ssd_output_decoder import decode_detections, decode_detections_fast
 
 from data_generator.object_detection_2d_data_generator import DataGenerator
-from data_generator.object_detection_2d_geometric_ops import Resize
-from data_generator.object_detection_2d_photometric_ops import ConvertTo3Channels
-from data_generator.data_augmentation_chain_original_ssd import SSDDataAugmentation
+from data_generator.object_detection_2d_geometric_ops import Resize_Modified
+from data_generator.object_detection_2d_photometric_ops import ConvertTo3Channels_Modified
+from data_generator.data_augmentation_chain_original_ssd import SSDDataAugmentation_modified
 from data_generator.object_detection_2d_misc_utils import apply_inverse_transforms
+import random
+np.set_printoptions(precision=20)
+
 np.random.seed(1337)
 
 img_height = 300 # Height of the model input images
@@ -74,16 +77,32 @@ model.load_weights(weights_path, by_name=True)
 # 3: Instantiate an optimizer and the SSD loss function and compile the model.
 #    If you want to follow the original Caffe implementation, use the preset SGD
 #    optimizer, otherwise I'd recommend the commented-out Adam optimizer.
+adam = Adam(lr=0.0001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
 
-# opt = Adam(lr=0.0001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
-opt = SGD(lr=0.0001, momentum=0.9, decay=0.0, nesterov=False)
+ssd_loss1 = SSDLoss(neg_pos_ratio=3, alpha=1.0)
+ssd_loss2 = SSDLoss(neg_pos_ratio=3, alpha=1.0)
+ssd_loss3 = SSDLoss(neg_pos_ratio=3, alpha=1.0)
+ssd_loss4 = SSDLoss(neg_pos_ratio=3, alpha=1.0)
 
-ssd_loss = SSDLoss(neg_pos_ratio=3, alpha=1.0)
+losses = {
+    "predictions_1": ssd_loss1.compute_loss,
+    "predictions_2": ssd_loss2.compute_loss,
+    "predictions_1_proj": ssd_loss3.compute_loss,
+    "predictions_2_proj": ssd_loss4.compute_loss
 
-model.compile(optimizer=adam, loss=ssd_loss.compute_loss,metrics=['accuracy'])
+}
+lossWeights = {"predictions_1": 1.0,"predictions_2": 1.0,"predictions_1_proj": 1.0,"predictions_2_proj": 1.0}
 
+model.compile(optimizer=adam, loss=losses, loss_weights=lossWeights, metrics=['accuracy']) 
+
+# train_dataset = DataGenerator(load_images_into_memory=False, hdf5_dataset_path='dataset_pascal_voc_07+12_trainval.h5')
+# val_dataset = DataGenerator(load_images_into_memory=False, hdf5_dataset_path='dataset_pascal_voc_07_test.h5')
 train_dataset = DataGenerator(load_images_into_memory=False, hdf5_dataset_path=None)
 val_dataset = DataGenerator(load_images_into_memory=False, hdf5_dataset_path=None)
+
+val_dataset = DataGenerator(load_images_into_memory=False, hdf5_dataset_path=None)
+val_dataset_1 = DataGenerator(load_images_into_memory=False, hdf5_dataset_path=None)
+
 
 VOC_2007_images_dir      = '../datasets/Images/'
 
@@ -91,16 +110,21 @@ VOC_2007_images_dir      = '../datasets/Images/'
 VOC_2007_annotations_dir      = '../datasets/VOC/Pasadena/Annotations/'
 
 # The paths to the image sets.
-VOC_2007_trainval_image_set_filename = '../datasets/VOC/Pasadena/ImageSets/Main/norm/trainval_standard.txt'
-VOC_2007_val_image_set_filename      = '../datasets/VOC/Pasadena/ImageSets/Main/norm/val_standard.txt'
-VOC_2007_test_image_set_filename     = '../datasets/VOC/Pasadena/ImageSets/Main/norm/test.txt'
+VOC_2007_trainval_image_set_filename = '../datasets/VOC/Pasadena/ImageSets/Main/siamese/trainval_sia.txt'
+VOC_2007_val_image_set_filename      = '../datasets/VOC/Pasadena/ImageSets/Main/siamese/val_sia.txt'
+VOC_2007_test_image_set_filename     = '../datasets/VOC/Pasadena/ImageSets/Main/siamese/test_sia.txt'
+
+# VOC_2007_trainval_image_set_filename = '../datasets/VOC/Pasadena/ImageSets/Main/siamese/trainval_sia_same.txt'
+# VOC_2007_val_image_set_filename      = '../datasets/VOC/Pasadena/ImageSets/Main/siamese/val_sia_same.txt'
+# VOC_2007_test_image_set_filename     = '../datasets/VOC/Pasadena/ImageSets/Main/siamese/test_sia_same.txt'
+
+# VOC_2007_trainval_image_set_filename = '../datasets/VOC/Pasadena/ImageSets/Main/siamese/trainval_sia_sub.txt'
+# VOC_2007_val_image_set_filename      = '../datasets/VOC/Pasadena/ImageSets/Main/siamese/val_sia_sub.txt'
+# VOC_2007_test_image_set_filename     = '../datasets/VOC/Pasadena/ImageSets/Main/siamese/test_sia_sub.txt'
 
 # The XML parser needs to now what object class names to look for and in which order to map them to integers.
 classes = ['background',
            'tree']
-
-# train_dataset = DataGenerator(load_images_into_memory=False, hdf5_dataset_path='dataset_pasadena_standard_voc_07+12_trainval.h5')
-# val_dataset = DataGenerator(load_images_into_memory=False, hdf5_dataset_path='dataset_pasadena_standard_voc_07_val.h5')
 
 train_dataset.parse_xml(images_dirs=[VOC_2007_images_dir],
                         image_set_filenames=[VOC_2007_trainval_image_set_filename],
@@ -111,6 +135,7 @@ train_dataset.parse_xml(images_dirs=[VOC_2007_images_dir],
                         exclude_difficult=False,
                         ret=False)
 
+
 val_dataset.parse_xml(images_dirs=[VOC_2007_images_dir],
                       image_set_filenames=[VOC_2007_val_image_set_filename],
                       annotations_dirs=[VOC_2007_annotations_dir],
@@ -120,40 +145,30 @@ val_dataset.parse_xml(images_dirs=[VOC_2007_images_dir],
                       exclude_difficult=True,
                       ret=False)
 
-train_dataset.create_hdf5_dataset(file_path='dataset_pasadena_standard_voc_07+12_trainval.h5',
-                                 resize=False,
-                                 variable_image_size=True,
-                                 verbose=True)
-
-val_dataset.create_hdf5_dataset(file_path='dataset_pasadena_standard_voc_07_val.h5',
-                                 resize=False,
-                                 variable_image_size=True,
-                                 verbose=True)
-
-# 3: Set the batch size.
-
-batch_size = 16 # Change the batch size if you like, or if you run into GPU memory issues.
+batch_size = 8 # Change the batch size if you like, or if you run into GPU memory issues.
 
 # 4: Set the image transformations for pre-processing and data augmentation options.
 
 # For the training generator:
-ssd_data_augmentation = SSDDataAugmentation(img_height=img_height,
-                                img_width=img_width,
+ssd_data_augmentation = SSDDataAugmentation_modified(img_height=img_height,
+                                            img_width=img_width,
                                             background=mean_color)
 
 # For the validation generator:
-convert_to_3_channels = ConvertTo3Channels()
-resize = Resize(height=img_height, width=img_width)
+convert_to_3_channels = ConvertTo3Channels_Modified()        # w_ = tf.where(tf.is_nan(w_), tf.zeros_like(w_), w_)
+        # h_ = tf.where(tf.is_nan(h_), tf.zeros_like(h_), h_)
+
+resize = Resize_Modified(height=img_height, width=img_width)
 
 # 5: Instantiate an encoder that can encode ground truth labels into the format needed by the SSD loss function.
 
 # The encoder constructor needs the spatial dimensions of the model's predictor layers to create the anchor boxes.
-predictor_sizes = [model.get_layer('conv4_3_norm_mbox_conf').output_shape[1:3],
-                   model.get_layer('fc7_mbox_conf').output_shape[1:3],
-                   model.get_layer('conv6_2_mbox_conf').output_shape[1:3],
-                   model.get_layer('conv7_2_mbox_conf').output_shape[1:3],
-                   model.get_layer('conv8_2_mbox_conf').output_shape[1:3],
-                   model.get_layer('conv9_2_mbox_conf').output_shape[1:3]]
+predictor_sizes = [model.get_layer('conv4_3_norm_mbox_conf__1').output_shape[1:3],
+                   model.get_layer('fc7_mbox_conf__1').output_shape[1:3],
+                   model.get_layer('conv6_2_mbox_conf__1').output_shape[1:3],
+                   model.get_layer('conv7_2_mbox_conf__1').output_shape[1:3],
+                   model.get_layer('conv8_2_mbox_conf__1').output_shape[1:3],
+                   model.get_layer('conv9_2_mbox_conf__1').output_shape[1:3]]
 
 ssd_input_encoder = SSDInputEncoder(img_height=img_height,
                                     img_width=img_width,
@@ -174,7 +189,7 @@ ssd_input_encoder = SSDInputEncoder(img_height=img_height,
 # 6: Create the generator handles that will be passed to Keras' `fit_generator()` function.
 
 train_generator = train_dataset.generate(batch_size=batch_size,
-                                         shuffle=True,
+                                         shuffle=False,
                                          transformations=[ssd_data_augmentation],
                                          label_encoder=ssd_input_encoder,
                                          returns={'processed_images',
@@ -192,10 +207,13 @@ val_generator = val_dataset.generate(batch_size=batch_size,
 
 # Get the number of samples in the training and validations datasets.
 train_dataset_size = train_dataset.get_dataset_size()
+
 val_dataset_size   = val_dataset.get_dataset_size()
 
 print("Number of images in the training dataset:\t{:>6}".format(train_dataset_size))
-print("Number of images in the validation dataset:\t{:>6}".format(val_dataset_size))
+print("Number of images in the validation dataset:\t{:>6}".format(val_dataset_size)) 
+
+# Define a learning rate schedule.
 
 def lr_schedule(epoch):
     if epoch < 80:
@@ -205,10 +223,42 @@ def lr_schedule(epoch):
     else:
         return 0.00001
 
+class prediction_history(Callback):-
+    def __init__(self):
+        print("Start Prediction")
+        
+    def on_epoch_end(self, epoch, logs={}):  
+        predder = np.load('predder.npy')
+        bX = predder[0][0]
+        bZ = predder[0][1]
+        gX = predder[0][2]
+        gZ = predder[0][3]
+
+        
+        intermediate_layer_model = Model(inputs=model.input,
+                             outputs=model.get_layer("predictions_1").output)
+        intermediate_layer_model_1 = Model(inputs=model.input,
+                             outputs=model.get_layer("predictions_1_proj").output)
+        intermediate_layer_model_2 = Model(inputs=model.input,
+                             outputs=model.get_layer("predictions_2").output)
+        intermediate_layer_model_3 = Model(inputs=model.input,
+                             outputs=model.get_layer("predictions_2_proj").output)
+
+        intermediate_output = intermediate_layer_model.predict([bX,bZ,gX,gZ])
+        intermediate_output_1 = intermediate_layer_model_1.predict([bX,bZ,gX,gZ])
+        intermediate_output_2 = intermediate_layer_model_2.predict([bX,bZ,gX,gZ])
+        intermediate_output_3 = intermediate_layer_model_3.predict([bX,bZ,gX,gZ])
+
+        ran = str(random.randint(1, 10))
+        np.save('predictions_1_'+str(epoch)+'.npy',intermediate_output)
+        np.save('predictions_1_proj_'+str(epoch)+'.npy',intermediate_output_1)
+        np.save('predictions_2_'+str(epoch)+'.npy',intermediate_output_2)
+        np.save('predictions_2_proj_'+str(epoch)+'.npy',intermediate_output_3)
+
 # Define model callbacks.
 
 # TODO: Set the filepath under which you want to save the model.
-model_checkpoint = ModelCheckpoint(filepath='ssd300_pascal_07+12_epoch-{epoch:02d}_loss-{loss:.4f}_val_loss-{val_loss:.4f}.h5',
+model_checkpoint = ModelCheckpoint(filepath='double_ssd300_pascal_07+12_epoch-{epoch:02d}_loss-{loss:.4f}_val_loss-{val_loss:.4f}.h5',
                                    monitor='val_loss',
                                    verbose=1,
                                    save_best_only=True,
@@ -235,6 +285,7 @@ callbacks = [model_checkpoint,
              learning_rate_scheduler,
              early_stopping,
              terminate_on_nan,
+             printer_callback,
              tbCallBack]
 
 # If you're resuming a previous training, set `initial_epoch` and `final_epoch` accordingly.

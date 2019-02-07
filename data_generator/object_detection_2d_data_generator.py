@@ -87,7 +87,7 @@ class DataGenerator:
                  labels=None,
                  image_ids=None,
                  eval_neutral=None,
-                 labels_output_format=('class_id', 'xmin', 'ymin', 'xmax', 'ymax'),
+                 labels_output_format=('class_id', 'xmin', 'ymin', 'xmax', 'ymax', 'target_id','yaw','lat','lng'),
                  verbose=True):
         '''
         Initializes the data generator. You can either load a dataset directly here in the constructor,
@@ -140,7 +140,11 @@ class DataGenerator:
                             'xmin': labels_output_format.index('xmin'),
                             'ymin': labels_output_format.index('ymin'),
                             'xmax': labels_output_format.index('xmax'),
-                            'ymax': labels_output_format.index('ymax')} # This dictionary is for internal use.
+                            'ymax': labels_output_format.index('ymax'),
+                            'target_id': labels_output_format.index('target_id'),
+                            'yaw': labels_output_format.index('yaw'),
+                            'lat': labels_output_format.index('lat'),
+                            'lng': labels_output_format.index('lng')} # This dictionary is for internal use.
 
         self.dataset_size = 0 # As long as we haven't loaded anything yet, the dataset size is zero.
         self.load_images_into_memory = load_images_into_memory
@@ -454,16 +458,18 @@ class DataGenerator:
         self.filenames = []
         self.image_ids = []
         self.labels = []
+        self.labels1 = []
         self.eval_neutral = []
         if not annotations_dirs:
             self.labels = None
+            self.labels1 = None
             self.eval_neutral = None
             annotations_dirs = [None] * len(images_dirs)
 
         for images_dir, image_set_filename, annotations_dir in zip(images_dirs, image_set_filenames, annotations_dirs):
             # Read the image set file that so that we know all the IDs of all the images to be included in the dataset.
             with open(image_set_filename) as f:
-                image_ids = [line.strip() for line in f] # Note: These are strings, not integers.
+                image_ids = [line.strip().split("     ") for line in f] # Note: These are strings, not integers.
                 self.image_ids += image_ids
 
             if verbose: it = tqdm(image_ids, desc="Processing image set '{}'".format(os.path.basename(image_set_filename)), file=sys.stdout)
@@ -471,13 +477,14 @@ class DataGenerator:
 
             # Loop over all images in this dataset.
             for image_id in it:
+                filename = '{}'.format(image_id[0]) + '.jpg'
+                filename1 = '{}'.format(image_id[1]) + '.jpg'
 
-                filename = '{}'.format(image_id) + '.jpg'
-                self.filenames.append(os.path.join(images_dir, filename))
+                self.filenames.append([os.path.join(images_dir, filename),os.path.join(images_dir, filename1)])
 
                 if not annotations_dir is None:
                     # Parse the XML file for this image.
-                    with open(os.path.join(annotations_dir, image_id + '.xml')) as f:
+                    with open(os.path.join(annotations_dir, image_id[0] + '.xml')) as f:
                         soup = BeautifulSoup(f, 'xml')
 
                     folder = "Pasadena" # In case we want to return the folder in addition to the image file name. Relevant for determining which dataset an image belongs to.
@@ -486,9 +493,11 @@ class DataGenerator:
                     boxes = [] # We'll store all boxes for this image here.
                     eval_neutr = [] # We'll store whether a box is annotated as "difficult" here.
                     objects = soup.find_all('object') # Get a list of all objects in this image.
-                    for target in objects:
-                        if target.find("ID"):
-                            objects = [target]
+                    # for target in objects:
+                    #     if target.find("ID"):
+                    #         objects = [target]
+
+                    # Parse the data for each object.
 
                     # Parse the data for each object.
                     for obj in objects:
@@ -535,133 +544,64 @@ class DataGenerator:
                         if difficult: eval_neutr.append(True)
                         else: eval_neutr.append(False)
 
-                    self.labels.append(boxes)
-                    self.eval_neutral.append(eval_neutr)
+                    with open(os.path.join(annotations_dir, image_id[1] + '.xml')) as f:
+                        soup = BeautifulSoup(f, 'xml')
 
-        self.dataset_size = len(self.filenames)
-        self.dataset_indices = np.arange(self.dataset_size, dtype=np.int32)
-        if self.load_images_into_memory:
-            self.images = []
-            if verbose: it = tqdm(self.filenames, desc='Loading images into memory', file=sys.stdout)
-            else: it = self.filenames
-            for filename in it:
-                with Image.open(filename) as image:
-                    self.images.append(np.array(image, dtype=np.uint8))
+                    folder = "Pasadena" # In case we want to return the folder in addition to the image file name. Relevant for determining which dataset an image belongs to.
+                    #filename = soup.filename.text
 
-        if ret:
-            return self.images, self.filenames, self.labels, self.image_ids, self.eval_neutral
+                    boxes1 = [] # We'll store all boxes for this image here.
+                    eval_neutr1 = [] # We'll store whether a box is annotated as "difficult" here.
+                    objects = soup.find_all('object') # Get a list of all objects in this image.
 
-    def parse_json(self,
-                   images_dirs,
-                   annotations_filenames,
-                   ground_truth_available=False,
-                   include_classes='all',
-                   ret=False,
-                   verbose=True):
-        '''
-        This is an JSON parser for the MS COCO datasets. It might be applicable to other datasets with minor changes to
-        the code, but in its current form it expects the JSON format of the MS COCO datasets.
-
-        Arguments:
-            images_dirs (list, optional): A list of strings, where each string is the path of a directory that
-                contains images that are to be part of the dataset. This allows you to aggregate multiple datasets
-                into one (e.g. one directory that contains the images for MS COCO Train 2014, another one for MS COCO
-                Val 2014, another one for MS COCO Train 2017 etc.).
-            annotations_filenames (list): A list of strings, where each string is the path of the JSON file
-                that contains the annotations for the images in the respective image directories given, i.e. one
-                JSON file per image directory that contains the annotations for all images in that directory.
-                The content of the JSON files must be in MS COCO object detection format. Note that these annotations
-                files do not necessarily need to contain ground truth information. MS COCO also provides annotations
-                files without ground truth information for the test datasets, called `image_info_[...].json`.
-            ground_truth_available (bool, optional): Set `True` if the annotations files contain ground truth information.
-            include_classes (list, optional): Either 'all' or a list of integers containing the class IDs that
-                are to be included in the dataset. If 'all', all ground truth boxes will be included in the dataset.
-            ret (bool, optional): Whether or not to return the outputs of the parser.
-            verbose (bool, optional): If `True`, prints out the progress for operations that may take a bit longer.
-
-        Returns:
-            None by default, optionally lists for whichever are available of images, image filenames, labels and image IDs.
-        '''
-        self.images_dirs = images_dirs
-        self.annotations_filenames = annotations_filenames
-        self.include_classes = include_classes
-        # Erase data that might have been parsed before.
-        self.filenames = []
-        self.image_ids = []
-        self.labels = []
-        if not ground_truth_available:
-            self.labels = None
-
-        # Build the dictionaries that map between class names and class IDs.
-        with open(annotations_filenames[0], 'r') as f:
-            annotations = json.load(f)
-        # Unfortunately the 80 MS COCO class IDs are not all consecutive. They go
-        # from 1 to 90 and some numbers are skipped. Since the IDs that we feed
-        # into a neural network must be consecutive, we'll save both the original
-        # (non-consecutive) IDs as well as transformed maps.
-        # We'll save both the map between the original
-        self.cats_to_names = {} # The map between class names (values) and their original IDs (keys)
-        self.classes_to_names = [] # A list of the class names with their indices representing the transformed IDs
-        self.classes_to_names.append('background') # Need to add the background class first so that the indexing is right.
-        self.cats_to_classes = {} # A dictionary that maps between the original (keys) and the transformed IDs (values)
-        self.classes_to_cats = {} # A dictionary that maps between the transformed (keys) and the original IDs (values)
-        for i, cat in enumerate(annotations['categories']):
-            self.cats_to_names[cat['id']] = cat['name']
-            self.classes_to_names.append(cat['name'])
-            self.cats_to_classes[cat['id']] = i + 1
-            self.classes_to_cats[i + 1] = cat['id']
-
-        # Iterate over all datasets.
-        for images_dir, annotations_filename in zip(self.images_dirs, self.annotations_filenames):
-            # Load the JSON file.
-            with open(annotations_filename, 'r') as f:
-                annotations = json.load(f)
-
-            if ground_truth_available:
-                # Create the annotations map, a dictionary whose keys are the image IDs
-                # and whose values are the annotations for the respective image ID.
-                image_ids_to_annotations = defaultdict(list)
-                for annotation in annotations['annotations']:
-                    image_ids_to_annotations[annotation['image_id']].append(annotation)
-
-            if verbose: it = tqdm(annotations['images'], desc="Processing '{}'".format(os.path.basename(annotations_filename)), file=sys.stdout)
-            else: it = annotations['images']
-
-            # Loop over all images in this dataset.
-            for img in it:
-
-                self.filenames.append(os.path.join(images_dir, img['file_name']))
-                self.image_ids.append(img['id'])
-
-                if ground_truth_available:
-                    # Get all annotations for this image.
-                    annotations = image_ids_to_annotations[img['id']]
-                    boxes = []
-                    for annotation in annotations:
-                        cat_id = annotation['category_id']
-                        # Check if this class is supposed to be included in the dataset.
-                        if (not self.include_classes == 'all') and (not cat_id in self.include_classes): continue
-                        # Transform the original class ID to fit in the sequence of consecutive IDs.
-                        class_id = self.cats_to_classes[cat_id]
-                        xmin = annotation['bbox'][0]
-                        ymin = annotation['bbox'][1]
-                        width = annotation['bbox'][2]
-                        height = annotation['bbox'][3]
-                        # Compute `xmax` and `ymax`.
-                        xmax = xmin + width
-                        ymax = ymin + height
-                        item_dict = {'image_name': img['file_name'],
-                                     'image_id': img['id'],
+                    # Parse the data for each object.
+                    for obj in objects:
+                        class_name = obj.find('name', recursive=False).text
+                        class_id = self.classes.index(class_name)
+                        # Check whether this class is supposed to be included in the dataset.
+                        if (not self.include_classes == 'all') and (not class_id in self.include_classes): continue
+                        pose = obj.find('pose', recursive=False).text
+                        truncated = int(obj.find('truncated', recursive=False).text)
+                        if exclude_truncated and (truncated == 1): continue
+                        difficult = int(obj.find('difficult', recursive=False).text)
+                        if exclude_difficult and (difficult == 1): continue
+                        # Get the bounding box coordinates.
+                        bndbox = obj.find('bndbox', recursive=False)
+                        xmin = int(bndbox.xmin.text)
+                        ymin = int(bndbox.ymin.text)
+                        xmax = int(bndbox.xmax.text)
+                        ymax = int(bndbox.ymax.text)
+                        try:
+                            target_id = int(obj.find('ID', recursive=False).text)
+                        except:
+                            target_id = int(99)
+                        item_dict = {'folder': folder,
+                                     'image_name': filename,
+                                     'image_id': image_id,
+                                     'class_name': class_name,
                                      'class_id': class_id,
+                                     'pose': pose,
+                                     'truncated': truncated,
+                                     'difficult': difficult,
                                      'xmin': xmin,
                                      'ymin': ymin,
                                      'xmax': xmax,
-                                     'ymax': ymax}
+                                     'ymax': ymax,
+                                     'target_id':target_id,
+                                     'yaw':float(soup.yaw.text),
+                                     'lat':float(soup.panocoords.text.split(",")[0]),
+                                     'lng':float(soup.panocoords.text.split(",")[1])
+                                    }
                         box = []
                         for item in self.labels_output_format:
                             box.append(item_dict[item])
-                        boxes.append(box)
+                        boxes1.append(box)
+                        if difficult: eval_neutr1.append(True)
+                        else: eval_neutr1.append(False)
+
                     self.labels.append(boxes)
+                    self.labels1.append(boxes1)
+                    self.eval_neutral.append([eval_neutr,eval_neutr1])
 
         self.dataset_size = len(self.filenames)
         self.dataset_indices = np.arange(self.dataset_size, dtype=np.int32)
@@ -674,7 +614,8 @@ class DataGenerator:
                     self.images.append(np.array(image, dtype=np.uint8))
 
         if ret:
-            return self.images, self.filenames, self.labels, self.image_ids
+            return self.images, self.filenames, self.labels, self.labels1, self.image_ids, self.eval_neutral
+
 
     def create_hdf5_dataset(self,
                             file_path='dataset.h5',
@@ -737,39 +678,49 @@ class DataGenerator:
         # Create the dataset in which the images will be stored as flattened arrays.
         # This allows us, among other things, to store images of variable size.
         hdf5_images = hdf5_dataset.create_dataset(name='images',
-                                                  shape=(dataset_size,),
-                                                  maxshape=(None),
+                                                  shape=(2,dataset_size,),
+                                                  maxshape=(2,None),
                                                   dtype=h5py.special_dtype(vlen=np.uint8))
-
+        print("hdf5_images: ",(dataset_size,))
         # Create the dataset that will hold the image heights, widths and channels that
         # we need in order to reconstruct the images from the flattened arrays later.
         hdf5_image_shapes = hdf5_dataset.create_dataset(name='image_shapes',
-                                                        shape=(dataset_size, 3),
-                                                        maxshape=(None, 3),
+                                                        shape=(2,dataset_size, 3),
+                                                        maxshape=(2,None, 3),
                                                         dtype=np.int32)
-
+        print("hdf5_image_shapes: ",(dataset_size, 3))
         if not (self.labels is None):
 
             # Create the dataset in which the labels will be stored as flattened arrays.
             hdf5_labels = hdf5_dataset.create_dataset(name='labels',
                                                       shape=(dataset_size,),
                                                       maxshape=(None),
-                                                      dtype=h5py.special_dtype(vlen=np.int32))
+                                                      dtype=h5py.special_dtype(vlen=np.float32))
+            hdf5_labels1 = hdf5_dataset.create_dataset(name='labels1',
+                                                      shape=(dataset_size,),
+                                                      maxshape=(None),
+                                                      dtype=h5py.special_dtype(vlen=np.float32))
 
             # Create the dataset that will hold the dimensions of the labels arrays for
             # each image so that we can restore the labels from the flattened arrays later.
             hdf5_label_shapes = hdf5_dataset.create_dataset(name='label_shapes',
                                                             shape=(dataset_size, 2),
                                                             maxshape=(None, 2),
-                                                            dtype=np.int32)
+                                                            dtype=np.float32)
+
+            hdf5_label_shapes1 = hdf5_dataset.create_dataset(name='label_shapes1',
+                                                            shape=(dataset_size, 2),
+                                                            maxshape=(None, 2),
+                                                            dtype=np.float32)
+
 
             hdf5_dataset.attrs.modify(name='has_labels', value=True)
 
         if not (self.image_ids is None):
 
             hdf5_image_ids = hdf5_dataset.create_dataset(name='image_ids',
-                                                         shape=(dataset_size,),
-                                                         maxshape=(None),
+                                                         shape=(2,dataset_size,),
+                                                         maxshape=(2,None),
                                                          dtype=h5py.special_dtype(vlen=str))
 
             hdf5_dataset.attrs.modify(name='has_image_ids', value=True)
@@ -778,8 +729,8 @@ class DataGenerator:
 
             # Create the dataset in which the labels will be stored as flattened arrays.
             hdf5_eval_neutral = hdf5_dataset.create_dataset(name='eval_neutral',
-                                                            shape=(dataset_size,),
-                                                            maxshape=(None),
+                                                            shape=(2,dataset_size,),
+                                                            maxshape=(2,None),
                                                             dtype=h5py.special_dtype(vlen=np.bool_))
 
             hdf5_dataset.attrs.modify(name='has_eval_neutral', value=True)
@@ -793,9 +744,10 @@ class DataGenerator:
         for i in tr:
 
             # Store the image.
-            with Image.open(self.filenames[i]) as image:
+            with Image.open(self.filenames[i][0]) as image, Image.open(self.filenames[i][1]) as image1:
 
                 image = np.asarray(image, dtype=np.uint8)
+                image1 = np.asarray(image1, dtype=np.uint8)
 
                 # Make sure all images end up having three channels.
                 if image.ndim == 2:
@@ -808,21 +760,24 @@ class DataGenerator:
 
                 if resize:
                     image = cv2.resize(image, dsize=(resize[1], resize[0]))
+                    image1 = cv2.resize(image1, dsize=(resize[1], resize[0]))
 
                 # Flatten the image array and write it to the images dataset.
-                hdf5_images[i] = image.reshape(-1)
+                hdf5_images[i] = [image.reshape(-1),image1.reshape(-1)]
                 # Write the image's shape to the image shapes dataset.
-                hdf5_image_shapes[i] = image.shape
+                hdf5_image_shapes[i] = [image.shape,image1.shape]
 
             # Store the ground truth if we have any.
             if not (self.labels is None):
 
                 labels = np.asarray(self.labels[i])
+                labels1 = np.asarray(self.labels1[i])
                 # Flatten the labels array and write it to the labels dataset.
                 hdf5_labels[i] = labels.reshape(-1)
+                hdf5_labels1[i] = labels1.reshape(-1)
                 # Write the labels' shape to the label shapes dataset.
                 hdf5_label_shapes[i] = labels.shape
-
+                hdf5_label_shapes1[i] = labels1.shape
             # Store the image ID if we have one.
             if not (self.image_ids is None):
 
@@ -844,7 +799,7 @@ class DataGenerator:
                  shuffle=True,
                  transformations=[],
                  label_encoder=None,
-                 returns={'processed_images', 'encoded_labels'},
+                 returns={'processed_images_1','processed_images_2', 'encoded_labels'},
                  keep_images_without_gt=False,
                  degenerate_box_handling='remove'):
         '''
@@ -973,9 +928,11 @@ class DataGenerator:
 
         current = 0
 
+
+
         while True:
 
-            batch_X, batch_y = [], []
+            batch_X, batch_Z, batch_y, batch_w, batch_geox, batch_geoz = [], [], [], [], [], []
 
             if current >= self.dataset_size:
                 current = 0
@@ -1007,17 +964,21 @@ class DataGenerator:
             # 2) Else, if we have an HDF5 dataset, get the images from there.
             # 3) Else, if we have neither of the above, we'll have to load the individual image
             #    files from disk.
+
+
             batch_indices = self.dataset_indices[current:current+batch_size]
             if not (self.images is None):
                 for i in batch_indices:
-                    batch_X.append(self.images[i])
+                    batch_X.append(self.images[i][0])
+                    batch_Z.append(self.images[i][1])
                 if not (self.filenames is None):
                     batch_filenames = self.filenames[current:current+batch_size]
                 else:
                     batch_filenames = None
             elif not (self.hdf5_dataset is None):
                 for i in batch_indices:
-                    batch_X.append(self.hdf5_dataset['images'][i].reshape(self.hdf5_dataset['image_shapes'][i]))
+                    batch_X.append(self.hdf5_dataset['images'][i][0].reshape(self.hdf5_dataset['image_shapes'][i][0]))
+                    batch_Z.append(self.hdf5_dataset['images'][i][1].reshape(self.hdf5_dataset['image_shapes'][i][1]))
                 if not (self.filenames is None):
                     batch_filenames = self.filenames[current:current+batch_size]
                 else:
@@ -1025,15 +986,18 @@ class DataGenerator:
             else:
                 batch_filenames = self.filenames[current:current+batch_size]
                 for filename in batch_filenames:
-                    with Image.open(filename) as image:
+                    with Image.open(filename[0]) as image, Image.open(filename[1]) as image1:
                         batch_X.append(np.array(image, dtype=np.uint8))
+                        batch_Z.append(np.array(image1, dtype=np.uint8))
 
             # Get the labels for this batch (if there are any).
             if not (self.labels is None):
                 batch_y = deepcopy(self.labels[current:current+batch_size])
+                batch_w = deepcopy(self.labels1[current:current+batch_size])
+
             else:
                 batch_y = None
-
+                batch_w = None
             if not (self.eval_neutral is None):
                 batch_eval_neutral = self.eval_neutral[current:current+batch_size]
             else:
@@ -1047,8 +1011,10 @@ class DataGenerator:
 
             if 'original_images' in returns:
                 batch_original_images = deepcopy(batch_X) # The original, unaltered images
+
             if 'original_labels' in returns:
                 batch_original_labels = deepcopy(batch_y) # The original, unaltered labels
+                batch_original_labels1 = deepcopy(batch_w) # The original, unaltered labels
 
             current += batch_size
 
@@ -1058,47 +1024,61 @@ class DataGenerator:
 
             batch_items_to_remove = [] # In case we need to remove any images from the batch, store their indices in this list.
             batch_inverse_transforms = []
+            batch_inverse_transforms1 = []
 
             for i in range(len(batch_X)):
 
                 if not (self.labels is None):
-                    # Convert the labels for this image to an array (in case they aren't already).
-                    batch_y[i] = np.array(batch_y[i])
+                    # Convert the labels for this image to an array (in case they aren't already).                    
+                    batch_geox.append(np.tile(np.array(batch_y[i],dtype=np.float64)[0,-3:], (17292,1)))
+                    batch_geoz.append(np.tile(np.array(batch_w[i],dtype=np.float64)[0,-3:], (17292,1)))
+                    # print("################# batch_geox #############")
+                    # print(np.tile(np.array(batch_y[i],dtype=np.float64)[0,-3:], (17292,1)))
+                    # print("################# batch_geoz ##############")
+                    # print(np.tile(np.array(batch_w[i],dtype=np.float64)[0,-3:], (17292,1)))
+
+                    batch_y[i] = np.array(batch_y[i])[:,:-4]
+                    batch_w[i] = np.array(batch_w[i])[:,:-4]
                     # If this image has no ground truth boxes, maybe we don't want to keep it in the batch.
                     if (batch_y[i].size == 0) and not keep_images_without_gt:
                         batch_items_to_remove.append(i)
                         batch_inverse_transforms.append([])
+                        batch_inverse_transforms1.append([])
                         continue
 
                 # Apply any image transformations we may have received.
                 if transformations:
 
                     inverse_transforms = []
+                    inverse_transforms1 = []
 
                     for transform in transformations:
 
                         if not (self.labels is None):
-
                             if ('inverse_transform' in returns) and ('return_inverter' in inspect.signature(transform).parameters):
-                                batch_X[i], batch_y[i], inverse_transform = transform(batch_X[i], batch_y[i], return_inverter=True)
+                                batch_X[i], batch_y[i], batch_Z[i], batch_w[i], inverse_transform, inverse_transform1= transform(batch_X[i], batch_Z[i], batch_y[i], batch_w[i], return_inverter=True)
                                 inverse_transforms.append(inverse_transform)
-                            else:
-                                batch_X[i], batch_y[i] = transform(batch_X[i], batch_y[i])
+                                inverse_transforms1.append(inverse_transform1)
+                            else:       
+                                batch_X[i], batch_y[i], batch_Z[i], batch_w[i] = transform(batch_X[i], batch_y[i], batch_Z[i], batch_w[i])
 
                             if batch_X[i] is None: # In case the transform failed to produce an output image, which is possible for some random transforms.
                                 batch_items_to_remove.append(i)
                                 batch_inverse_transforms.append([])
+                                batch_inverse_transforms1.append([])
                                 continue
 
                         else:
-
                             if ('inverse_transform' in returns) and ('return_inverter' in inspect.signature(transform).parameters):
-                                batch_X[i], inverse_transform = transform(batch_X[i], return_inverter=True)
+                                batch_X[i], batch_y[i], batch_Z[i], batch_w[i], inverse_transform, inverse_transform1 = transform(batch_X[i], batch_Z[i], return_inverter=True)
                                 inverse_transforms.append(inverse_transform)
+                                inverse_transforms1.append(inverse_transform1)
                             else:
                                 batch_X[i] = transform(batch_X[i])
+                                batch_Z[i] = transform(batch_Z[i])
 
                     batch_inverse_transforms.append(inverse_transforms[::-1])
+                    batch_inverse_transforms1.append(inverse_transforms1[::-1])
 
                 #########################################################################################
                 # Check for degenerate boxes in this batch item.
@@ -1110,6 +1090,8 @@ class DataGenerator:
                     ymin = self.labels_format['ymin']
                     xmax = self.labels_format['xmax']
                     ymax = self.labels_format['ymax']
+                    ymax = self.labels_format['ymax']
+                    target_id = self.labels_format['target_id']
 
                     if np.any(batch_y[i][:,xmax] - batch_y[i][:,xmin] <= 0) or np.any(batch_y[i][:,ymax] - batch_y[i][:,ymin] <= 0):
                         if degenerate_box_handling == 'warn':
@@ -1123,6 +1105,19 @@ class DataGenerator:
                             if (batch_y[i].size == 0) and not keep_images_without_gt:
                                 batch_items_to_remove.append(i)
 
+                    if np.any(batch_w[i][:,xmax] - batch_w[i][:,xmin] <= 0) or np.any(batch_w[i][:,ymax] - batch_w[i][:,ymin] <= 0):
+                        if degenerate_box_handling == 'warn':
+                            warnings.warn("Detected degenerate ground truth bounding boxes for batch item {} with bounding boxes {}, ".format(i, batch_w[i]) +
+                                          "i.e. bounding boxes where xmax <= xmin and/or ymax <= ymin. " +
+                                          "This could mean that your dataset contains degenerate ground truth boxes, or that any image transformations you may apply might " +
+                                          "result in degenerate ground truth boxes, or that you are parsing the ground truth in the wrong coordinate format." +
+                                          "Degenerate ground truth bounding boxes may lead to NaN errors during the training.")
+                        elif degenerate_box_handling == 'remove':
+                            batch_w[i] = box_filter(batch_w[i])
+                            if (batch_w[i].size == 0) and not keep_images_without_gt:
+                                batch_items_to_remove.append(i)
+
+
             #########################################################################################
             # Remove any items we might not want to keep from the batch.
             #########################################################################################
@@ -1131,8 +1126,10 @@ class DataGenerator:
                 for j in sorted(batch_items_to_remove, reverse=True):
                     # This isn't efficient, but it hopefully shouldn't need to be done often anyway.
                     batch_X.pop(j)
+                    batch_Z.pop(j)
                     batch_filenames.pop(j)
                     if batch_inverse_transforms: batch_inverse_transforms.pop(j)
+                    if batch_inverse_transforms1: batch_inverse_transforms1.pop(j)
                     if not (self.labels is None): batch_y.pop(j)
                     if not (self.image_ids is None): batch_image_ids.pop(j)
                     if not (self.eval_neutral is None): batch_eval_neutral.pop(j)
@@ -1145,7 +1142,14 @@ class DataGenerator:
             #          or varying numbers of channels. At this point, all images must have the same size and the same
             #          number of channels.
             batch_X = np.array(batch_X)
+            batch_Z = np.array(batch_Z)
+
             if (batch_X.size == 0):
+                raise DegenerateBatchError("You produced an empty batch. This might be because the images in the batch vary " +
+                                           "in their size and/or number of channels. Note that after all transformations " +
+                                           "(if any were given) have been applied to all images in the batch, all images " +
+                                           "must be homogenous in size along all axes.")
+            if (batch_Z.size == 0):
                 raise DegenerateBatchError("You produced an empty batch. This might be because the images in the batch vary " +
                                            "in their size and/or number of channels. Note that after all transformations " +
                                            "(if any were given) have been applied to all images in the batch, all images " +
@@ -1158,32 +1162,53 @@ class DataGenerator:
             if not (label_encoder is None or self.labels is None):
 
                 if ('matched_anchors' in returns) and isinstance(label_encoder, SSDInputEncoder):
+                    print("BATCH_Y: ",batch_y)
+                    print("BATCH_W: ",batch_w)
                     batch_y_encoded, batch_matched_anchors = label_encoder(batch_y, diagnostics=True)
+                    batch_y_encoded1, batch_matched_anchors1 = label_encoder(batch_w, diagnostics=True)
+
+                    # batch_y_encoded_f = np.concatenate([batch_y_encoded,batch_y_encoded1,batch_y_geo])
+
+                    # batch_matched_anchors_f = np.concatenate([batch_matched_anchors,batch_matched_anchors1])
                 else:
+                    print("BATCH_Y: ",batch_y)
+                    print("BATCH_W: ",batch_w)
                     batch_y_encoded = label_encoder(batch_y, diagnostics=False)
+                    batch_y_encoded1 = label_encoder(batch_w, diagnostics=False)
                     batch_matched_anchors = None
 
             else:
                 batch_y_encoded = None
                 batch_matched_anchors = None
 
+
             #########################################################################################
             # Compose the output.
             #########################################################################################
 
-            ret = []
-            if 'processed_images' in returns: ret.append(batch_X)
-            if 'encoded_labels' in returns: ret.append(batch_y_encoded)
-            if 'matched_anchors' in returns: ret.append(batch_matched_anchors)
-            if 'processed_labels' in returns: ret.append(batch_y)
-            if 'filenames' in returns: ret.append(batch_filenames)
-            if 'image_ids' in returns: ret.append(batch_image_ids)
-            if 'evaluation-neutral' in returns: ret.append(batch_eval_neutral)
-            if 'inverse_transform' in returns: ret.append(batch_inverse_transforms)
-            if 'original_images' in returns: ret.append(batch_original_images)
-            if 'original_labels' in returns: ret.append(batch_original_labels)
+            # ret = []
+            # if 'processed_images' in returns: ret.append([batch_X,batch_Z])
+            # if 'encoded_labels' in returns: ret.append(batch_y_encoded_1)
+            # if 'matched_anchors' in returns: ret.append(batch_matched_anchors_f)
+            # if 'processed_labels' in returns: ret.append(batch_y)
+            # if 'filenames' in returns: ret.append(batch_filenames)
+            # if 'image_ids' in returns: ret.append(batch_image_ids)
+            # if 'evaluation-neutral' in returns: ret.append(batch_eval_neutral)
+            # if 'inverse_transform' in returns: ret.append(batch_inverse_transforms)
+            # if 'original_images' in returns: ret.append(batch_original_images)
+            # if 'original_labels' in returns: ret.append(batch_original_labels)
 
-            yield ret
+            # print(batch_X.shape,batch_Z.shape,batch_y_encoded_f.shape,batch_y_encoded.shape)
+            # yield batch_X, batch_Z, batch_y_encoded_f
+            # yield [[batch_X,batch_Z],[batch_y_encoded,batch_y_encoded1]]
+            # np.save('batch_y_encoded_f.npy', batch_y_encoded_f)
+            # np.save('predder.npy', [batch_X[0,...], batch_Z[0,...], np.array(batch_geox)[0,...], np.array(batch_geoz)[0,...]])
+            # yield [[batch_X, batch_Z, np.array(batch_geox), np.array(batch_geoz)], batch_y_encoded_f]
+            # print(np.array(batch_geox,dtype=np.float64))
+            # print([[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded, "predictions_2": batch_y_encoded1, "predictions_1_proj": batch_y_encoded1,"predictions_2_proj": batch_y_encoded}])
+            np.save('predder.npy', [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded, "predictions_2": batch_y_encoded1, "predictions_1_proj": batch_y_encoded1,"predictions_2_proj": batch_y_encoded}])
+            yield [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded,"predictions_2": batch_y_encoded1,"predictions_1_proj": batch_y_encoded1,"predictions_2_proj": batch_y_encoded}]
+            # yield [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded}]
 
     def save_dataset(self,
                      filenames_path='filenames.pkl',
