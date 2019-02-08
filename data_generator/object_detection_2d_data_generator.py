@@ -1032,13 +1032,10 @@ class DataGenerator:
                     # Convert the labels for this image to an array (in case they aren't already).                    
                     batch_geox.append(np.tile(np.array(batch_y[i],dtype=np.float64)[0,-3:], (17292,1)))
                     batch_geoz.append(np.tile(np.array(batch_w[i],dtype=np.float64)[0,-3:], (17292,1)))
-                    # print("################# batch_geox #############")
-                    # print(np.tile(np.array(batch_y[i],dtype=np.float64)[0,-3:], (17292,1)))
-                    # print("################# batch_geoz ##############")
-                    # print(np.tile(np.array(batch_w[i],dtype=np.float64)[0,-3:], (17292,1)))
-
-                    batch_y[i] = np.array(batch_y[i])[:,:-4]
-                    batch_w[i] = np.array(batch_w[i])[:,:-4]
+                    # print("batch_y full: ", np.array(batch_y[i])[:,:])
+                    # print("batch_w full: ", np.array(batch_y[i])[:,:])
+                    batch_y[i] = np.array(batch_y[i])[:,:-3]
+                    batch_w[i] = np.array(batch_w[i])[:,:-3]
                     # If this image has no ground truth boxes, maybe we don't want to keep it in the batch.
                     if (batch_y[i].size == 0) and not keep_images_without_gt:
                         batch_items_to_remove.append(i)
@@ -1162,9 +1159,9 @@ class DataGenerator:
             if not (label_encoder is None or self.labels is None):
 
                 if ('matched_anchors' in returns) and isinstance(label_encoder, SSDInputEncoder):
-                    # print("BATCH_Y: ",batch_y)
                     # print("BATCH_W: ",batch_w)
                     batch_y_encoded, batch_matched_anchors = label_encoder(batch_y, diagnostics=True)
+                    print("batch_y_encoded: ", batch_y_encoded)
                     batch_y_encoded1, batch_matched_anchors1 = label_encoder(batch_w, diagnostics=True)
 
                     # batch_y_encoded_f = np.concatenate([batch_y_encoded,batch_y_encoded1,batch_y_geo])
@@ -1206,7 +1203,7 @@ class DataGenerator:
             # yield [[batch_X, batch_Z, np.array(batch_geox), np.array(batch_geoz)], batch_y_encoded_f]
             # print(np.array(batch_geox,dtype=np.float64))
             # print([[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded, "predictions_2": batch_y_encoded1, "predictions_1_proj": batch_y_encoded1,"predictions_2_proj": batch_y_encoded}])
-            np.save('predder.npy', [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded, "predictions_2": batch_y_encoded1, "predictions_1_proj": batch_y_encoded1,"predictions_2_proj": batch_y_encoded}])
+            # np.save('predder.npy', [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded, "predictions_2": batch_y_encoded1, "predictions_1_proj": batch_y_encoded1,"predictions_2_proj": batch_y_encoded}])
             yield [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded,"predictions_2": batch_y_encoded1,"predictions_1_proj": batch_y_encoded1,"predictions_2_proj": batch_y_encoded}]
             # yield [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded}]
 
