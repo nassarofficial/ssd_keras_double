@@ -366,8 +366,9 @@ class SSDInputEncoder:
             # print("y_encoded bipar before ::::: ", y_encoded[i, bipartite_matches, :-9]) 
 
             # Write the ground truth data to the matched anchor boxes.
-            
+            # print("y_encoded[i, bipartite_matches, :-9]: ",y_encoded[i, bipartite_matches, :])
             y_encoded[i, bipartite_matches, :-9] = labels_one_hot[:,:-1]
+            # print("y_encoded[i, bipartite_matches, :-9]: ",y_encoded[i, bipartite_matches, :-9])
             # print("before: ",y_encoded)
             # print(y_encoded.shape)
             # print("labels all: ", labels_one_hot[:,:])
@@ -376,13 +377,16 @@ class SSDInputEncoder:
             # print("labels shape: ", labels_one_hot[:,:-1].shape)
             # print("target shape: ", labels_one_hot[:,-1].shape)
             y_encoded[i, bipartite_matches, -1] = labels_one_hot[:,-1]
+            # print("y_encoded[i, bipartite_matches, -1]: ",y_encoded[i, bipartite_matches, -1])
+            # print("y_encoded[i, bipartite_matches, :]: ",y_encoded[i, bipartite_matches, :])
             # print("after: ",y_encoded)
             # print("after one: ",y_encoded[0,0,:])
             # print(y_encoded.shape)
             # print("labels_one_hot: ", labels_one_hot)
             # print("y_encoded bipar after ::::: ", y_encoded[i, bipartite_matches, :-9]) 
-            print("y_encoded bipartite_matches: ", y_encoded[i, bipartite_matches, :]) 
-
+            # print("y_encoded bipartite_matches: ", y_encoded[i, bipartite_matches, :]) 
+            # print("------------------------------------------------------------------")
+            # print("------------------------------------------------------------------")
             # Set the columns of the matched anchor boxes to zero to indicate that they were matched.
             similarities[:, bipartite_matches] = 0
 
@@ -394,10 +398,10 @@ class SSDInputEncoder:
 
                 # Get all matches that satisfy the IoU threshold.
                 matches = match_multi(weight_matrix=similarities, threshold=self.pos_iou_threshold)
-
                 # Write the ground truth data to the matched anchor boxes.
-                y_encoded[i, matches[1], :-7] = labels_one_hot[matches[0]]
-                print(y_encoded)
+                loh = labels_one_hot[:,:-1]
+                y_encoded[i, matches[1], :-9] = loh[matches[0]]
+                # print("y_encoded: ",y_encoded)
                 # Set the columns of the matched anchor boxes to zero to indicate that they were matched.
                 similarities[:, matches[1]] = 0
 
@@ -438,7 +442,9 @@ class SSDInputEncoder:
             return y_encoded, y_matched_anchors
         else:
             # print("y_encoded: ",y_encoded.shape)
-            # print("y_encoded: ",y_encoded)
+            # print("y_encoded: ")
+            # np.save("y_enc.npy",y_encoded)
+            print(y_encoded)
             return y_encoded
 
     def generate_anchor_boxes_for_layer(self,
@@ -617,8 +623,8 @@ class SSDInputEncoder:
         # 3: Create a template tensor to hold the one-hot class encodings of shape `(batch, #boxes, #classes)`
         #    It will contain all zeros for now, the classes will be set in the matching process that follows
         classes_tensor = np.zeros((batch_size, boxes_tensor.shape[1], self.n_classes))
-        target_tensor = np.zeros((batch_size, boxes_tensor.shape[1], 1))
-
+        target_tensor = np.ones((batch_size, boxes_tensor.shape[1], 1)) * 99
+        # print("target_tensor",target_tensor)
         # 4: Create a tensor to contain the variances. This tensor has the same shape as `boxes_tensor` and simply
         #    contains the same 4 variance values for every position in the last axis.
         variances_tensor = np.zeros_like(boxes_tensor)
