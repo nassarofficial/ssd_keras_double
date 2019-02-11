@@ -624,6 +624,9 @@ class SSDInputEncoder:
         #    It will contain all zeros for now, the classes will be set in the matching process that follows
         classes_tensor = np.zeros((batch_size, boxes_tensor.shape[1], self.n_classes))
         target_tensor = np.ones((batch_size, boxes_tensor.shape[1], 1)) * 99
+        geo_tensor = np.ones((batch_size, boxes_tensor.shape[1], 2)) * 189
+        distance = np.ones((batch_size, boxes_tensor.shape[1], 1)) * 99
+
         # print("target_tensor",target_tensor)
         # 4: Create a tensor to contain the variances. This tensor has the same shape as `boxes_tensor` and simply
         #    contains the same 4 variance values for every position in the last axis.
