@@ -29,6 +29,7 @@ import csv
 import os
 import sys
 from tqdm import tqdm, trange
+import math
 try:
     import h5py
 except ImportError:
@@ -144,7 +145,10 @@ class DataGenerator:
                             'target_id': labels_output_format.index('target_id'),
                             'yaw': labels_output_format.index('yaw'),
                             'lat': labels_output_format.index('lat'),
-                            'lng': labels_output_format.index('lng')} # This dictionary is for internal use.
+                            'lng': labels_output_format.index('lng'),
+                            'pano_lat': labels_output_format.index('pano_lat'),
+                            'pano_lng': labels_output_format.index('pano_lng'),
+                            'distance': labels_output_format.index('distance')} # This dictionary is for internal use.
 
         self.dataset_size = 0 # As long as we haven't loaded anything yet, the dataset size is zero.
         self.load_images_into_memory = load_images_into_memory
@@ -401,6 +405,11 @@ class DataGenerator:
         if ret: # In case we want to return these
             return self.images, self.filenames, self.labels, self.image_ids
 
+    def haversine_distance(lat1, lon1, lat2, lon2):
+        a = math.sin(math.radians((lat2-lat1)/2.0))**2 + math.cos(math.radians(lat1))*math.cos(math.radians(lat2))*math.sin(math.radians((lon2-lon1)/2.0))**2
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+        return EARTH_RADIUS*c
+
     def parse_xml(self,
                   images_dirs,
                   image_set_filenames,
@@ -516,10 +525,20 @@ class DataGenerator:
                         ymin = int(bndbox.ymin.text)
                         xmax = int(bndbox.xmax.text)
                         ymax = int(bndbox.ymax.text)
+                        yaw = float(soup.yaw.text)
+                        lat_ = float(soup.panocoords.text.split(",")[0])
+                        lng_ = float(soup.panocoords.text.split(",")[1])                                     
                         try:
                             target_id = int(obj.find('ID', recursive=False).text)
+                            pano_lat = float(soup.location.text.split(",")[0])
+                            pano_lng = float(soup.location.text.split(",")[1])
+                            #lat1, lon1, lat2, lon2
+                            distance = haversine_distance(pano_lat,pano_lng,lat_,lng_)
+
                         except:
                             target_id = int(99)
+                            distance = 99
+
                         item_dict = {'folder': folder,
                                      'image_name': filename,
                                      'image_id': image_id,
@@ -533,9 +552,10 @@ class DataGenerator:
                                      'xmax': xmax,
                                      'ymax': ymax,
                                      'target_id':target_id,
-                                     'yaw':float(soup.yaw.text),
-                                     'lat':float(soup.panocoords.text.split(",")[0]),
-                                     'lng':float(soup.panocoords.text.split(",")[1])
+                                     'yaw':yaw,
+                                     'lat':lat_,
+                                     'lng':lng_,
+                                     'distance':distance                                
                                     }
                         box = []
                         for item in self.labels_output_format:
@@ -588,6 +608,8 @@ class DataGenerator:
                                      'xmax': xmax,
                                      'ymax': ymax,
                                      'target_id':target_id,
+                                     'pano_lat':float(soup.location.text.split(",")[0]),
+                                     'pano_lng':float(soup.location.text.split(",")[1]),
                                      'yaw':float(soup.yaw.text),
                                      'lat':float(soup.panocoords.text.split(",")[0]),
                                      'lng':float(soup.panocoords.text.split(",")[1])
@@ -1088,6 +1110,9 @@ class DataGenerator:
                     xmax = self.labels_format['xmax']
                     ymax = self.labels_format['ymax']
                     ymax = self.labels_format['ymax']
+                    target_id = self.labels_format['target_id']
+                    target_id = self.labels_format['target_id']
+                    target_id = self.labels_format['target_id']
                     target_id = self.labels_format['target_id']
 
                     if np.any(batch_y[i][:,xmax] - batch_y[i][:,xmin] <= 0) or np.any(batch_y[i][:,ymax] - batch_y[i][:,ymin] <= 0):
