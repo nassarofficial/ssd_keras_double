@@ -46,7 +46,7 @@ try:
 except ImportError:
     warnings.warn("'pickle' module is missing. You won't be able to save parsed file lists and annotations as pickled files.")
 
-from ssd_encoder_decoder.ssd_input_encoder import SSDInputEncoder
+from ssd_encoder_decoder.ssd_input_encoder_mod import SSDInputEncoder
 from data_generator.object_detection_2d_image_boxes_validation_utils import BoxFilter
 
 class DegenerateBatchError(Exception):
@@ -1161,7 +1161,7 @@ class DataGenerator:
                 if ('matched_anchors' in returns) and isinstance(label_encoder, SSDInputEncoder):
                     # print("BATCH_W: ",batch_w)
                     batch_y_encoded, batch_matched_anchors = label_encoder(batch_y, diagnostics=True)
-                    print("batch_y_encoded: ", batch_y_encoded)
+                    print("batch_y_encoded: ", batch_y_encoded.shape)
                     batch_y_encoded1, batch_matched_anchors1 = label_encoder(batch_w, diagnostics=True)
 
                     # batch_y_encoded_f = np.concatenate([batch_y_encoded,batch_y_encoded1,batch_y_geo])
@@ -1171,7 +1171,9 @@ class DataGenerator:
                     # print("BATCH_Y: ",batch_y)
                     # print("BATCH_W: ",batch_w)
                     batch_y_encoded = label_encoder(batch_y, diagnostics=False)
+                    print("batch_y_encoded s : ", batch_y_encoded.shape)
                     batch_y_encoded1 = label_encoder(batch_w, diagnostics=False)
+
                     batch_matched_anchors = None
 
             else:

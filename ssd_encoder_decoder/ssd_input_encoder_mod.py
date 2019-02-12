@@ -443,9 +443,9 @@ class SSDInputEncoder:
         else:
             # print("y_encoded: ",y_encoded.shape)
             # print("y_encoded: ")
-            # np.save("y_enc.npy",y_encoded)
-            print(y_encoded)
-            return y_encoded
+            np.save("y_enc.npy",y_encoded)
+            # print(y_encoded.shape)
+            return y_encoded[:,:,:-1]
 
     def generate_anchor_boxes_for_layer(self,
                                         feature_map_size,

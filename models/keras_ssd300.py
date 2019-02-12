@@ -592,14 +592,16 @@ def ssd_300(image_size,
         # mbox_conf_softmax = 2, mbox_loc = 4, mbox_priorbox = 8, mbox_conf_softmax= 2, mbox_proj= 4, mbox_priorbox = 8
         # predictions = Concatenate(axis=2, name='predictions'+'_'+suf)([mbox_conf_softmax, mbox_loc, mbox_priorbox, mbox_proj])
 
-        predictions = Concatenate(axis=2, name='predictions'+suf)([mbox_conf_softmax, mbox_loc, mbox_priorbox])
+        predictions = Concatenate(axis=2, name='predictions'+suf)([mbox_conf_softmax, mbox_loc, mbox_priorbox, K.zeros_like(mbox_conf_softmax)])
 
         mbox_proj = Dense(32, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
         mbox_proj = Dense(16, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
         mbox_proj = Dense(8, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
         mbox_proj = Dense(4, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
         # # mbox_proj_conv1 = tf.zeros(tf.shape(mbox_proj_conv1), dtype=tf.float32,name=None)
-        predictions_proj = Concatenate(axis=2, name='predictions'+suf+'_proj')([mbox_conf_softmax, mbox_proj, mbox_priorbox])
+
+        ### iM HERE JUST LAMBDA LAYER IT
+        predictions_proj = Concatenate(axis=2, name='predictions'+suf+'_proj')([mbox_conf_softmax, mbox_proj, mbox_priorbox, K.zeros_like(mbox_conf_softmax)])
 
         # model = Model(input=[x,geo_1,geo_2],output=predictions)
         model = Model(input=[x,geo_1,geo_2],output=[predictions,predictions_proj])
