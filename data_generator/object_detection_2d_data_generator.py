@@ -88,7 +88,7 @@ class DataGenerator:
                  labels=None,
                  image_ids=None,
                  eval_neutral=None,
-                 labels_output_format=('class_id', 'xmin', 'ymin', 'xmax', 'ymax', 'target_id','yaw','lat','lng'),
+                 labels_output_format=('class_id', 'xmin', 'ymin', 'xmax', 'ymax', 'target_id','yaw','lat','lng','distance'),
                  verbose=True):
         '''
         Initializes the data generator. You can either load a dataset directly here in the constructor,
@@ -146,8 +146,6 @@ class DataGenerator:
                             'yaw': labels_output_format.index('yaw'),
                             'lat': labels_output_format.index('lat'),
                             'lng': labels_output_format.index('lng'),
-                            'pano_lat': labels_output_format.index('pano_lat'),
-                            'pano_lng': labels_output_format.index('pano_lng'),
                             'distance': labels_output_format.index('distance')} # This dictionary is for internal use.
 
         self.dataset_size = 0 # As long as we haven't loaded anything yet, the dataset size is zero.
@@ -272,138 +270,6 @@ class DataGenerator:
             for i in tr:
                 self.eval_neutral.append(eval_neutral[i])
 
-    def parse_csv(self,
-                  images_dir,
-                  labels_filename,
-                  input_format,
-                  include_classes='all',
-                  random_sample=False,
-                  ret=False,
-                  verbose=True):
-        '''
-        Arguments:
-            images_dir (str): The path to the directory that contains the images.
-            labels_filename (str): The filepath to a CSV file that contains one ground truth bounding box per line
-                and each line contains the following six items: image file name, class ID, xmin, xmax, ymin, ymax.
-                The six items do not have to be in a specific order, but they must be the first six columns of
-                each line. The order of these items in the CSV file must be specified in `input_format`.
-                The class ID is an integer greater than zero. Class ID 0 is reserved for the background class.
-                `xmin` and `xmax` are the left-most and right-most absolute horizontal coordinates of the box,
-                `ymin` and `ymax` are the top-most and bottom-most absolute vertical coordinates of the box.
-                The image name is expected to be just the name of the image file without the directory path
-                at which the image is located.
-            input_format (list): A list of six strings representing the order of the six items
-                image file name, class ID, xmin, xmax, ymin, ymax in the input CSV file. The expected strings
-                are 'image_name', 'xmin', 'xmax', 'ymin', 'ymax', 'class_id'.
-            include_classes (list, optional): Either 'all' or a list of integers containing the class IDs that
-                are to be included in the dataset. If 'all', all ground truth boxes will be included in the dataset.
-            random_sample (float, optional): Either `False` or a float in `[0,1]`. If this is `False`, the
-                full dataset will be used by the generator. If this is a float in `[0,1]`, a randomly sampled
-                fraction of the dataset will be used, where `random_sample` is the fraction of the dataset
-                to be used. For example, if `random_sample = 0.2`, 20 precent of the dataset will be randomly selected,
-                the rest will be ommitted. The fraction refers to the number of images, not to the number
-                of boxes, i.e. each image that will be added to the dataset will always be added with all
-                of its boxes.
-            ret (bool, optional): Whether or not to return the outputs of the parser.
-            verbose (bool, optional): If `True`, prints out the progress for operations that may take a bit longer.
-
-        Returns:
-            None by default, optionally lists for whichever are available of images, image filenames, labels, and image IDs.
-        '''
-
-        # Set class members.
-        self.images_dir = images_dir
-        self.labels_filename = labels_filename
-        self.input_format = input_format
-        self.include_classes = include_classes
-
-        # Before we begin, make sure that we have a labels_filename and an input_format
-        if self.labels_filename is None or self.input_format is None:
-            raise ValueError("`labels_filename` and/or `input_format` have not been set yet. You need to pass them as arguments.")
-
-        # Erase data that might have been parsed before
-        self.filenames = []
-        self.image_ids = []
-        self.labels = []
-
-        # First, just read in the CSV file lines and sort them.
-
-        data = []
-
-        with open(self.labels_filename, newline='') as csvfile:
-            csvread = csv.reader(csvfile, delimiter=',')
-            next(csvread) # Skip the header row.
-            for row in csvread: # For every line (i.e for every bounding box) in the CSV file...
-                if self.include_classes == 'all' or int(row[self.input_format.index('class_id')].strip()) in self.include_classes: # If the class_id is among the classes that are to be included in the dataset...
-                    box = [] # Store the box class and coordinates here
-                    box.append(row[self.input_format.index('image_name')].strip()) # Select the image name column in the input format and append its content to `box`
-                    for element in self.labels_output_format: # For each element in the output format (where the elements are the class ID and the four box coordinates)...
-                        box.append(int(row[self.input_format.index(element)].strip())) # ...select the respective column in the input format and append it to `box`.
-                    data.append(box)
-
-        data = sorted(data) # The data needs to be sorted, otherwise the next step won't give the correct result
-
-        # Now that we've made sure that the data is sorted by file names,
-        # we can compile the actual samples and labels lists
-
-        current_file = data[0][0] # The current image for which we're collecting the ground truth boxes
-        current_image_id = data[0][0].split('.')[0] # The image ID will be the portion of the image name before the first dot.
-        current_labels = [] # The list where we collect all ground truth boxes for a given image
-        add_to_dataset = False
-        for i, box in enumerate(data):
-
-            if box[0] == current_file: # If this box (i.e. this line of the CSV file) belongs to the current image file
-                current_labels.append(box[1:])
-                if i == len(data)-1: # If this is the last line of the CSV file
-                    if random_sample: # In case we're not using the full dataset, but a random sample of it.
-                        p = np.random.uniform(0,1)
-                        if p >= (1-random_sample):
-                            self.labels.append(np.stack(current_labels, axis=0))
-                            self.filenames.append(os.path.join(self.images_dir, current_file))
-                            self.image_ids.append(current_image_id)
-                    else:
-                        self.labels.append(np.stack(current_labels, axis=0))
-                        self.filenames.append(os.path.join(self.images_dir, current_file))
-                        self.image_ids.append(current_image_id)
-            else: # If this box belongs to a new image file
-                if random_sample: # In case we're not using the full dataset, but a random sample of it.
-                    p = np.random.uniform(0,1)
-                    if p >= (1-random_sample):
-                        self.labels.append(np.stack(current_labels, axis=0))
-                        self.filenames.append(os.path.join(self.images_dir, current_file))
-                        self.image_ids.append(current_image_id)
-                else:
-                    self.labels.append(np.stack(current_labels, axis=0))
-                    self.filenames.append(os.path.join(self.images_dir, current_file))
-                    self.image_ids.append(current_image_id)
-                current_labels = [] # Reset the labels list because this is a new file.
-                current_file = box[0]
-                current_image_id = box[0].split('.')[0]
-                current_labels.append(box[1:])
-                if i == len(data)-1: # If this is the last line of the CSV file
-                    if random_sample: # In case we're not using the full dataset, but a random sample of it.
-                        p = np.random.uniform(0,1)
-                        if p >= (1-random_sample):
-                            self.labels.append(np.stack(current_labels, axis=0))
-                            self.filenames.append(os.path.join(self.images_dir, current_file))
-                            self.image_ids.append(current_image_id)
-                    else:
-                        self.labels.append(np.stack(current_labels, axis=0))
-                        self.filenames.append(os.path.join(self.images_dir, current_file))
-                        self.image_ids.append(current_image_id)
-
-        self.dataset_size = len(self.filenames)
-        self.dataset_indices = np.arange(self.dataset_size, dtype=np.int32)
-        if self.load_images_into_memory:
-            self.images = []
-            if verbose: it = tqdm(self.filenames, desc='Loading images into memory', file=sys.stdout)
-            else: it = self.filenames
-            for filename in it:
-                with Image.open(filename) as image:
-                    self.images.append(np.array(image, dtype=np.uint8))
-
-        if ret: # In case we want to return these
-            return self.images, self.filenames, self.labels, self.image_ids
 
     def haversine_distance(lat1, lon1, lat2, lon2):
         a = math.sin(math.radians((lat2-lat1)/2.0))**2 + math.cos(math.radians(lat1))*math.cos(math.radians(lat2))*math.sin(math.radians((lon2-lon1)/2.0))**2
@@ -555,7 +421,7 @@ class DataGenerator:
                                      'yaw':yaw,
                                      'lat':lat_,
                                      'lng':lng_,
-                                     'distance':distance                                
+                                     'distance':int(distance)                             
                                     }
                         box = []
                         for item in self.labels_output_format:
@@ -591,10 +457,19 @@ class DataGenerator:
                         ymin = int(bndbox.ymin.text)
                         xmax = int(bndbox.xmax.text)
                         ymax = int(bndbox.ymax.text)
+                        yaw = float(soup.yaw.text)
+                        lat_ = float(soup.panocoords.text.split(",")[0])
+                        lng_ = float(soup.panocoords.text.split(",")[1])                                     
                         try:
                             target_id = int(obj.find('ID', recursive=False).text)
+                            pano_lat = float(soup.location.text.split(",")[0])
+                            pano_lng = float(soup.location.text.split(",")[1])
+                            #lat1, lon1, lat2, lon2
+                            distance = haversine_distance(pano_lat,pano_lng,lat_,lng_)
+
                         except:
                             target_id = int(99)
+                            distance = 99
                         item_dict = {'folder': folder,
                                      'image_name': filename,
                                      'image_id': image_id,
@@ -608,11 +483,10 @@ class DataGenerator:
                                      'xmax': xmax,
                                      'ymax': ymax,
                                      'target_id':target_id,
-                                     'pano_lat':float(soup.location.text.split(",")[0]),
-                                     'pano_lng':float(soup.location.text.split(",")[1]),
                                      'yaw':float(soup.yaw.text),
                                      'lat':float(soup.panocoords.text.split(",")[0]),
-                                     'lng':float(soup.panocoords.text.split(",")[1])
+                                     'lng':float(soup.panocoords.text.split(",")[1]),
+                                     'distance':int(distance)                                
                                     }
                         box = []
                         for item in self.labels_output_format:
@@ -1111,9 +985,6 @@ class DataGenerator:
                     ymax = self.labels_format['ymax']
                     ymax = self.labels_format['ymax']
                     target_id = self.labels_format['target_id']
-                    target_id = self.labels_format['target_id']
-                    target_id = self.labels_format['target_id']
-                    target_id = self.labels_format['target_id']
 
                     if np.any(batch_y[i][:,xmax] - batch_y[i][:,xmin] <= 0) or np.any(batch_y[i][:,ymax] - batch_y[i][:,ymin] <= 0):
                         if degenerate_box_handling == 'warn':
@@ -1186,7 +1057,6 @@ class DataGenerator:
                 if ('matched_anchors' in returns) and isinstance(label_encoder, SSDInputEncoder):
                     # print("BATCH_W: ",batch_w)
                     batch_y_encoded, batch_matched_anchors = label_encoder(batch_y, diagnostics=True)
-                    print("batch_y_encoded: ", batch_y_encoded)
                     batch_y_encoded1, batch_matched_anchors1 = label_encoder(batch_w, diagnostics=True)
 
                     # batch_y_encoded_f = np.concatenate([batch_y_encoded,batch_y_encoded1,batch_y_geo])
@@ -1197,6 +1067,7 @@ class DataGenerator:
                     # print("BATCH_W: ",batch_w)
                     batch_y_encoded = label_encoder(batch_y, diagnostics=False)
                     batch_y_encoded1 = label_encoder(batch_w, diagnostics=False)
+                    # print("batch_y_encoded: ", batch_y_encoded.shape)
                     batch_matched_anchors = None
 
             else:
@@ -1228,7 +1099,7 @@ class DataGenerator:
             # yield [[batch_X, batch_Z, np.array(batch_geox), np.array(batch_geoz)], batch_y_encoded_f]
             # print(np.array(batch_geox,dtype=np.float64))
             # print([[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded, "predictions_2": batch_y_encoded1, "predictions_1_proj": batch_y_encoded1,"predictions_2_proj": batch_y_encoded}])
-            # np.save('predder.npy', [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded, "predictions_2": batch_y_encoded1, "predictions_1_proj": batch_y_encoded1,"predictions_2_proj": batch_y_encoded}])
+            np.save('predder.npy', [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded, "predictions_2": batch_y_encoded1, "predictions_1_proj": batch_y_encoded1,"predictions_2_proj": batch_y_encoded}])
             yield [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded,"predictions_2": batch_y_encoded1,"predictions_1_proj": batch_y_encoded1,"predictions_2_proj": batch_y_encoded}]
             # yield [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded}]
 

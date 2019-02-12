@@ -342,7 +342,9 @@ def ssd_300(image_size,
         lng = lng1 + tf.asin(dx/tf.cos(lat1*(MATH_PI/180)))*(180/MATH_PI)
         return lat, lng
 
-
+    def zeroer(inp):
+        z = K.ones_like(inp)
+        return z[:,:,:1]
 
     def projector(y_input):
         y_in = y_input[:,:,:14]
@@ -592,14 +594,19 @@ def ssd_300(image_size,
         # mbox_conf_softmax = 2, mbox_loc = 4, mbox_priorbox = 8, mbox_conf_softmax= 2, mbox_proj= 4, mbox_priorbox = 8
         # predictions = Concatenate(axis=2, name='predictions'+'_'+suf)([mbox_conf_softmax, mbox_loc, mbox_priorbox, mbox_proj])
 
-        predictions = Concatenate(axis=2, name='predictions'+suf)([mbox_conf_softmax, mbox_loc, mbox_priorbox])
-
+        empty = Lambda(zeroer, name='predictions'+'_'+suf+'_zeroer')(mbox_conf_softmax)
+        predictions = Concatenate(axis=2, name='predictions'+suf)([mbox_conf_softmax, mbox_loc, mbox_priorbox,empty])
+        
+        # predictions = Concatenate(axis=2, name='predictions'+suf)([mbox_conf_softmax, mbox_loc, mbox_priorbox])
         mbox_proj = Dense(32, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
         mbox_proj = Dense(16, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
         mbox_proj = Dense(8, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
         mbox_proj = Dense(4, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
         # # mbox_proj_conv1 = tf.zeros(tf.shape(mbox_proj_conv1), dtype=tf.float32,name=None)
-        predictions_proj = Concatenate(axis=2, name='predictions'+suf+'_proj')([mbox_conf_softmax, mbox_proj, mbox_priorbox])
+
+        # predictions_proj = Concatenate(axis=2, name='predictions'+suf+'_proj')([mbox_conf_softmax, mbox_proj, mbox_priorbox])
+
+        predictions_proj = Concatenate(axis=2, name='predictions'+suf+'_proj')([mbox_conf_softmax, mbox_proj, mbox_priorbox,empty])
 
         # model = Model(input=[x,geo_1,geo_2],output=predictions)
         model = Model(input=[x,geo_1,geo_2],output=[predictions,predictions_proj])

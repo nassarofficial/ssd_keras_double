@@ -417,23 +417,21 @@ class SSDInputEncoder:
         ##################################################################################
         # Convert box coordinates to anchor box offsets.
         ##################################################################################
-
         if self.coords == 'centroids':
-            # print("Test 1")
-            y_encoded[:,:,[-13,-12]] -= y_encoded[:,:,[-9,-8]] # cx(gt) - cx(anchor), cy(gt) - cy(anchor)
-            y_encoded[:,:,[-13,-12]] /= y_encoded[:,:,[-7,-6]] * y_encoded[:,:,[-5,-4]] # (cx(gt) - cx(anchor)) / w(anchor) / cx_variance, (cy(gt) - cy(anchor)) / h(anchor) / cy_variance
-            y_encoded[:,:,[-11,-10]] /= y_encoded[:,:,[-7,-6]] # w(gt) / w(anchor), h(gt) / h(anchor)
-            y_encoded[:,:,[-11,-10]] = np.log(y_encoded[:,:,[-11,-10]]) / y_encoded[:,:,[-3,-2]] # ln(w(gt) / w(anchor)) / w_variance, ln(h(gt) / h(anchor)) / h_variance (ln == natural logarithm)
+            y_encoded[:,:,[-12,-11]] -= y_encoded[:,:,[-8,-7]] # cx(gt) - cx(anchor), cy(gt) - cy(anchor)
+            y_encoded[:,:,[-12,-11]] /= y_encoded[:,:,[-6,-5]] * y_encoded[:,:,[-4,-3]] # (cx(gt) - cx(anchor)) / w(anchor) / cx_variance, (cy(gt) - cy(anchor)) / h(anchor) / cy_variance
+            y_encoded[:,:,[-10,-9]] /= y_encoded[:,:,[-6,-5]] # w(gt) / w(anchor), h(gt) / h(anchor)
+            y_encoded[:,:,[-10,-9]] = np.log(y_encoded[:,:,[-10,-9]]) / y_encoded[:,:,[-2,-1]] # ln(w(gt) / w(anchor)) / w_variance, ln(h(gt) / h(anchor)) / h_variance (ln == natural logarithm)
         elif self.coords == 'corners':
-            y_encoded[:,:,-13:-9] -= y_encoded[:,:,-9:-5] # (gt - anchor) for all four coordinates
-            y_encoded[:,:,[-13,-11]] /= np.expand_dims(y_encoded[:,:,-7] - y_encoded[:,:,-9], axis=-1) # (xmin(gt) - xmin(anchor)) / w(anchor), (xmax(gt) - xmax(anchor)) / w(anchor)
-            y_encoded[:,:,[-12,-10]] /= np.expand_dims(y_encoded[:,:,-6] - y_encoded[:,:,-8], axis=-1) # (ymin(gt) - ymin(anchor)) / h(anchor), (ymax(gt) - ymax(anchor)) / h(anchor)
-            y_encoded[:,:,-13:-9] /= y_encoded[:,:,-5:] # (gt - anchor) / size(anchor) / variance for all four coordinates, where 'size' refers to w and h respectively
+            y_encoded[:,:,-12:-8] -= y_encoded[:,:,-8:-4] # (gt - anchor) for all four coordinates
+            y_encoded[:,:,[-12,-10]] /= np.expand_dims(y_encoded[:,:,-6] - y_encoded[:,:,-8], axis=-1) # (xmin(gt) - xmin(anchor)) / w(anchor), (xmax(gt) - xmax(anchor)) / w(anchor)
+            y_encoded[:,:,[-11,-9]] /= np.expand_dims(y_encoded[:,:,-5] - y_encoded[:,:,-7], axis=-1) # (ymin(gt) - ymin(anchor)) / h(anchor), (ymax(gt) - ymax(anchor)) / h(anchor)
+            y_encoded[:,:,-12:-8] /= y_encoded[:,:,-4:] # (gt - anchor) / size(anchor) / variance for all four coordinates, where 'size' refers to w and h respectively
         elif self.coords == 'minmax':
-            y_encoded[:,:,-13:-9] -= y_encoded[:,:,-9:-5] # (gt - anchor) for all four coordinates
-            y_encoded[:,:,[-13,-12]] /= np.expand_dims(y_encoded[:,:,-8] - y_encoded[:,:,-9], axis=-1) # (xmin(gt) - xmin(anchor)) / w(anchor), (xmax(gt) - xmax(anchor)) / w(anchor)
-            y_encoded[:,:,[-11,-10]] /= np.expand_dims(y_encoded[:,:,-6] - y_encoded[:,:,-7], axis=-1) # (ymin(gt) - ymin(anchor)) / h(anchor), (ymax(gt) - ymax(anchor)) / h(anchor)
-            y_encoded[:,:,-13:-9] /= y_encoded[:,:,-5:] # (gt - anchor) / size(anchor) / variance for all four coordinates, where 'size' refers to w and h respectively
+            y_encoded[:,:,-12:-8] -= y_encoded[:,:,-8:-4] # (gt - anchor) for all four coordinates
+            y_encoded[:,:,[-12,-11]] /= np.expand_dims(y_encoded[:,:,-7] - y_encoded[:,:,-8], axis=-1) # (xmin(gt) - xmin(anchor)) / w(anchor), (xmax(gt) - xmax(anchor)) / w(anchor)
+            y_encoded[:,:,[-10,-9]] /= np.expand_dims(y_encoded[:,:,-5] - y_encoded[:,:,-6], axis=-1) # (ymin(gt) - ymin(anchor)) / h(anchor), (ymax(gt) - ymax(anchor)) / h(anchor)
+            y_encoded[:,:,-12:-8] /= y_encoded[:,:,-4:] # (gt - anchor) / size(anchor) / variance for all four coordinates, where 'size' refers to w and h respectively
 
         if diagnostics:
             # Here we'll save the matched anchor boxes (i.e. anchor boxes that were matched to a ground truth box, but keeping the anchor box coordinates).
@@ -441,10 +439,6 @@ class SSDInputEncoder:
             y_matched_anchors[:,:,-13:-9] = 0 # Keeping the anchor box coordinates means setting the offsets to zero.
             return y_encoded, y_matched_anchors
         else:
-            # print("y_encoded: ",y_encoded.shape)
-            # print("y_encoded: ")
-            # np.save("y_enc.npy",y_encoded)
-            print(y_encoded)
             return y_encoded
 
     def generate_anchor_boxes_for_layer(self,
