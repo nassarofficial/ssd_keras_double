@@ -694,12 +694,12 @@ class DataGenerator:
         self.dataset_size = len(self.hdf5_dataset['images'])
         self.dataset_indices = np.arange(self.dataset_size, dtype=np.int32) # Instead of shuffling the HDF5 dataset, we will shuffle this index list.
     
-    def targeter_gt(gt):
-        args = np.where(gt[:,:,-1]!=99)
-        searcher = []
-        for x in args[1]:
-            searcher.append(x)
-        return gt[:,searcher,:]
+    # def targeter_gt(self, gt):
+    #     args = np.where(gt[:,:,-1]!=99)
+    #     searcher = []
+    #     for x in args[1]:
+    #         searcher.append(x)
+    #     return gt[:,searcher,:]
 
     def generate(self,
                  batch_size=32,
@@ -1063,7 +1063,12 @@ class DataGenerator:
             #########################################################################################
             # If we have a label encoder, encode our labels.
             #########################################################################################
-
+            # def targeter_gt(gt):
+            #     args = np.where(gt[:,:,-1]!=99)
+            #     searcher = []
+            #     for x in args[1]:
+            #         searcher.append(x)
+            #     return gt[:,searcher,:]
             if not (label_encoder is None or self.labels is None):
 
                 if ('matched_anchors' in returns) and isinstance(label_encoder, SSDInputEncoder):
@@ -1077,10 +1082,11 @@ class DataGenerator:
                 else:
                     # print("BATCH_Y: ",batch_y)
                     # print("BATCH_W: ",batch_w)
+
                     batch_y_encoded_1 = label_encoder(batch_y, diagnostics=False)
                     batch_y_encoded_2 = label_encoder(batch_w, diagnostics=False)
-                    batch_y_encoded_1_proj = targeter_gt(batch_y_encoded_1)
-                    batch_y_encoded_2_proj = targeter_gt(batch_y_encoded_2)
+                    # batch_y_encoded_1_proj = targeter_gt(batch_y_encoded_1)
+                    # batch_y_encoded_2_proj = targeter_gt(batch_y_encoded_2)
                     # print("batch_y_encoded: ", batch_y_encoded.shape)
                     batch_matched_anchors = None
 
@@ -1090,10 +1096,17 @@ class DataGenerator:
 
             #########################################################################################
             # Compose the output.
-            #########################################################################################
-            np.save('predder.npy', [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded_1, "predictions_2": batch_y_encoded_2, "predictions_1_proj": batch_y_encoded_2,"predictions_2_proj": batch_y_encoded_1}])
-            yield [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded_1,"predictions_2": batch_y_encoded_2,"predictions_1_proj": batch_y_encoded_2,"predictions_2_proj": batch_y_encoded_1}]
-            # yield [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded}]
+            # #########################################################################################
+            # np.save('outputs/predder.npy', [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded_1, "predictions_2": batch_y_encoded_2, "predictions_1_proj": batch_y_encoded_2,"predictions_2_proj": batch_y_encoded_1}])
+            # yield [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded_1,"predictions_2": batch_y_encoded_2,"predictions_1_proj": batch_y_encoded_2,"predictions_2_proj": batch_y_encoded_1}]
+
+            # np.save('outputs/predder.npy', [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded_1,"predictions_2": batch_y_encoded_2,"predictions_1_proj": [batch_y_encoded_1,batch_y_encoded_2_proj],"predictions_2_proj": [batch_y_encoded_2,batch_y_encoded_1_proj]}])
+            # yield [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded_1,"predictions_2": batch_y_encoded_2,"predictions_1_proj": [batch_y_encoded_1,batch_y_encoded_2_proj],"predictions_2_proj": [batch_y_encoded_2,batch_y_encoded_1_proj]}]
+
+            np.save('outputs/predder.npy', [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded_1,"predictions_2": batch_y_encoded_2,"predictions_1_proj_tot": np.concatenate([batch_y_encoded_1,batch_y_encoded_2],2),"predictions_2_proj_tot": np.concatenate([batch_y_encoded_2,batch_y_encoded_1],2)}])
+            yield [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded_1,"predictions_2": batch_y_encoded_2,"predictions_1_proj_tot": np.concatenate([batch_y_encoded_1,batch_y_encoded_2],2),"predictions_2_proj_tot": np.concatenate([batch_y_encoded_2,batch_y_encoded_1],2)}]
+
+            # yield [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded_1,"predictions_2": batch_y_encoded_2}]
 
 
     def save_dataset(self,

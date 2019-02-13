@@ -594,8 +594,10 @@ def ssd_300(image_size,
         # mbox_conf_softmax = 2, mbox_loc = 4, mbox_priorbox = 8, mbox_conf_softmax= 2, mbox_proj= 4, mbox_priorbox = 8
         # predictions = Concatenate(axis=2, name='predictions'+'_'+suf)([mbox_conf_softmax, mbox_loc, mbox_priorbox, mbox_proj])
 
-        empty = Lambda(zeroer, name='predictions'+'_'+suf+'_zeroer')(mbox_loc)
-        predictions = Concatenate(axis=2, name='predictions'+suf)([mbox_conf_softmax, mbox_loc, mbox_priorbox,empty])
+        empty_4 = Lambda(zeroer)(mbox_loc)
+        empty_2 = Lambda(zeroer)(mbox_conf_softmax)
+
+        predictions = Concatenate(axis=2, name='predictions'+suf)([mbox_conf_softmax, mbox_loc, mbox_priorbox,empty_4])
         
         # predictions = Concatenate(axis=2, name='predictions'+suf)([mbox_conf_softmax, mbox_loc, mbox_priorbox])
         mbox_proj = Dense(32, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
@@ -606,10 +608,10 @@ def ssd_300(image_size,
 
         # predictions_proj = Concatenate(axis=2, name='predictions'+suf+'_proj')([mbox_conf_softmax, mbox_proj, mbox_priorbox])
 
-        predictions_proj = Concatenate(axis=2, name='predictions'+suf+'_proj')([mbox_conf_softmax, mbox_proj, mbox_priorbox,empty])
+        predictions_proj = Concatenate(axis=2, name='predictions'+suf+'_proj')([mbox_conf_softmax, mbox_proj, mbox_priorbox,empty_4])
 
         # model = Model(input=[x,geo_1,geo_2],output=predictions)
-        model = Model(input=[x,geo_1,geo_2],output=[predictions,predictions_proj])
+        model = Model(input=[x,geo_1,geo_2],output=[predictions, predictions_proj])
 
         return model
 
@@ -629,7 +631,10 @@ def ssd_300(image_size,
 
 
     if mode == 'training':
-        model = Model(inputs=[X, Z, X_geo, Z_geo], outputs=[ssd1.get_layer(name="predictions_1").output,ssd2.get_layer(name="predictions_2").output,ssd1.get_layer(name="predictions_1_proj").output,ssd2.get_layer(name="predictions_2_proj").output])
+        pred_1_proj = Concatenate(axis=2, name='predictions_1_proj_tot')([ssd1.get_layer(name="predictions_1").output,ssd1.get_layer(name="predictions_1_proj").output])
+        pred_2_proj = Concatenate(axis=2, name='predictions_2_proj_tot')([ssd2.get_layer(name="predictions_2").output,ssd2.get_layer(name="predictions_2_proj").output])
+
+        model = Model(inputs=[X, Z, X_geo, Z_geo], outputs=[ssd1.get_layer(name="predictions_1").output,ssd2.get_layer(name="predictions_2").output,pred_1_proj,pred_2_proj])
         # model = Model(inputs=[x, x_x, geo_1, geo_2], outputs=[ssd1.get_layer("predictions_1").output, ssd1.get_layer("predictions_1_proj").output])
         # model = Model(inputs=[x, x_x, geo_1, geo_2], outputs=ssd1.get_layer("predictions_1").output)
         # model = Model(inputs=[X, Z, X_geo, Z_geo], outputs=[preds_1, preds_2])

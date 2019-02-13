@@ -364,7 +364,10 @@ class SSDInputEncoder:
             # This is a matrix of shape `(num_ground_truth_boxes, num_anchor_boxes)`.
             # print("labels_one_hot: ", labels_one_hot.shape) 
             ### IM HERE HELLO!!!
+            print("before: ", labels[:,[xmin,ymin,xmax,ymax]].shape, y_encoded[i,:,-16:-12].shape)
             similarities = iou(labels[:,[xmin,ymin,xmax,ymax]], y_encoded[i,:,-16:-12], coords=self.coords, mode='outer_product', border_pixels=self.border_pixels)
+            print("after: ", similarities.shape)
+
             # First: Do bipartite matching, i.e. match each ground truth box to the one anchor box with the highest IoU.
             #        This ensures that each ground truth box will have at least one good match.
             # For each ground truth box, get the anchor box to match with it.
