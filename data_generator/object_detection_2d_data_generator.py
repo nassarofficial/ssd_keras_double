@@ -403,7 +403,9 @@ class DataGenerator:
 
                         except:
                             target_id = int(99)
-                            distance = 99
+                            distance = 89
+                            lat = 98
+                            lng = 189
 
                         item_dict = {'folder': folder,
                                      'image_name': filename,
@@ -417,12 +419,12 @@ class DataGenerator:
                                      'ymin': ymin,
                                      'xmax': xmax,
                                      'ymax': ymax,
+                                     'distance':int(distance),
                                      'target_id':target_id,
                                      'yaw':yaw,
                                      'lat':lat_,
-                                     'lng':lng_,
-                                     'distance':int(distance)                             
-                                    }
+                                     'lng':lng_
+                                    }                        
                         box = []
                         for item in self.labels_output_format:
                             box.append(item_dict[item])
@@ -466,10 +468,12 @@ class DataGenerator:
                             pano_lng = float(soup.location.text.split(",")[1])
                             #lat1, lon1, lat2, lon2
                             distance = haversine_distance(pano_lat,pano_lng,lat_,lng_)
-
                         except:
-                            target_id = int(99)
-                            distance = 99
+                            target_id = 99
+                            distance = 89
+                            lat = 98
+                            lng = 189
+
                         item_dict = {'folder': folder,
                                      'image_name': filename,
                                      'image_id': image_id,
@@ -482,12 +486,12 @@ class DataGenerator:
                                      'ymin': ymin,
                                      'xmax': xmax,
                                      'ymax': ymax,
+                                     'distance':int(distance),
                                      'target_id':target_id,
-                                     'yaw':float(soup.yaw.text),
-                                     'lat':float(soup.panocoords.text.split(",")[0]),
-                                     'lng':float(soup.panocoords.text.split(",")[1]),
-                                     'distance':int(distance)                                
-                                    }
+                                     'yaw':yaw,
+                                     'lat':lat_,
+                                     'lng':lng_
+                                    }                        
                         box = []
                         for item in self.labels_output_format:
                             box.append(item_dict[item])
@@ -689,6 +693,13 @@ class DataGenerator:
         self.hdf5_dataset_path = file_path
         self.dataset_size = len(self.hdf5_dataset['images'])
         self.dataset_indices = np.arange(self.dataset_size, dtype=np.int32) # Instead of shuffling the HDF5 dataset, we will shuffle this index list.
+    
+    def targeter_gt(gt):
+        args = np.where(gt[:,:,-1]!=99)
+        searcher = []
+        for x in args[1]:
+            searcher.append(x)
+        return gt[:,searcher,:]
 
     def generate(self,
                  batch_size=32,
@@ -925,13 +936,14 @@ class DataGenerator:
             for i in range(len(batch_X)):
 
                 if not (self.labels is None):
-                    # Convert the labels for this image to an array (in case they aren't already).                    
+                    # Convert the labels for this image to an array (in case they aren't already).  
+                                     #                     'xmin': xmin,
                     batch_geox.append(np.tile(np.array(batch_y[i],dtype=np.float64)[0,-3:], (17292,1)))
                     batch_geoz.append(np.tile(np.array(batch_w[i],dtype=np.float64)[0,-3:], (17292,1)))
                     # print("batch_y full: ", np.array(batch_y[i])[:,:])
                     # print("batch_w full: ", np.array(batch_y[i])[:,:])
-                    batch_y[i] = np.array(batch_y[i])[:,:-3]
-                    batch_w[i] = np.array(batch_w[i])[:,:-3]
+                    batch_y[i] = np.array(batch_y[i])
+                    batch_w[i] = np.array(batch_w[i])
                     # If this image has no ground truth boxes, maybe we don't want to keep it in the batch.
                     if (batch_y[i].size == 0) and not keep_images_without_gt:
                         batch_items_to_remove.append(i)
@@ -1065,8 +1077,10 @@ class DataGenerator:
                 else:
                     # print("BATCH_Y: ",batch_y)
                     # print("BATCH_W: ",batch_w)
-                    batch_y_encoded = label_encoder(batch_y, diagnostics=False)
-                    batch_y_encoded1 = label_encoder(batch_w, diagnostics=False)
+                    batch_y_encoded_1 = label_encoder(batch_y, diagnostics=False)
+                    batch_y_encoded_2 = label_encoder(batch_w, diagnostics=False)
+                    batch_y_encoded_1_proj = targeter_gt(batch_y_encoded_1)
+                    batch_y_encoded_2_proj = targeter_gt(batch_y_encoded_2)
                     # print("batch_y_encoded: ", batch_y_encoded.shape)
                     batch_matched_anchors = None
 
@@ -1074,34 +1088,13 @@ class DataGenerator:
                 batch_y_encoded = None
                 batch_matched_anchors = None
 
-
             #########################################################################################
             # Compose the output.
             #########################################################################################
-
-            # ret = []
-            # if 'processed_images' in returns: ret.append([batch_X,batch_Z])
-            # if 'encoded_labels' in returns: ret.append(batch_y_encoded_1)
-            # if 'matched_anchors' in returns: ret.append(batch_matched_anchors_f)
-            # if 'processed_labels' in returns: ret.append(batch_y)
-            # if 'filenames' in returns: ret.append(batch_filenames)
-            # if 'image_ids' in returns: ret.append(batch_image_ids)
-            # if 'evaluation-neutral' in returns: ret.append(batch_eval_neutral)
-            # if 'inverse_transform' in returns: ret.append(batch_inverse_transforms)
-            # if 'original_images' in returns: ret.append(batch_original_images)
-            # if 'original_labels' in returns: ret.append(batch_original_labels)
-
-            # print(batch_X.shape,batch_Z.shape,batch_y_encoded_f.shape,batch_y_encoded.shape)
-            # yield batch_X, batch_Z, batch_y_encoded_f
-            # yield [[batch_X,batch_Z],[batch_y_encoded,batch_y_encoded1]]
-            # np.save('batch_y_encoded_f.npy', batch_y_encoded_f)
-            # np.save('predder.npy', [batch_X[0,...], batch_Z[0,...], np.array(batch_geox)[0,...], np.array(batch_geoz)[0,...]])
-            # yield [[batch_X, batch_Z, np.array(batch_geox), np.array(batch_geoz)], batch_y_encoded_f]
-            # print(np.array(batch_geox,dtype=np.float64))
-            # print([[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded, "predictions_2": batch_y_encoded1, "predictions_1_proj": batch_y_encoded1,"predictions_2_proj": batch_y_encoded}])
-            np.save('predder.npy', [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded, "predictions_2": batch_y_encoded1, "predictions_1_proj": batch_y_encoded1,"predictions_2_proj": batch_y_encoded}])
-            yield [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded,"predictions_2": batch_y_encoded1,"predictions_1_proj": batch_y_encoded1,"predictions_2_proj": batch_y_encoded}]
+            np.save('predder.npy', [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded_1, "predictions_2": batch_y_encoded_2, "predictions_1_proj": batch_y_encoded_2,"predictions_2_proj": batch_y_encoded_1}])
+            yield [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded_1,"predictions_2": batch_y_encoded_2,"predictions_1_proj": batch_y_encoded_2,"predictions_2_proj": batch_y_encoded_1}]
             # yield [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded}]
+
 
     def save_dataset(self,
                      filenames_path='filenames.pkl',

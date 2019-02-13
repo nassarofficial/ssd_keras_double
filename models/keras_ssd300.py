@@ -344,7 +344,7 @@ def ssd_300(image_size,
 
     def zeroer(inp):
         z = K.ones_like(inp)
-        return z[:,:,:1]
+        return z
 
     def projector(y_input):
         y_in = y_input[:,:,:14]
@@ -594,7 +594,7 @@ def ssd_300(image_size,
         # mbox_conf_softmax = 2, mbox_loc = 4, mbox_priorbox = 8, mbox_conf_softmax= 2, mbox_proj= 4, mbox_priorbox = 8
         # predictions = Concatenate(axis=2, name='predictions'+'_'+suf)([mbox_conf_softmax, mbox_loc, mbox_priorbox, mbox_proj])
 
-        empty = Lambda(zeroer, name='predictions'+'_'+suf+'_zeroer')(mbox_conf_softmax)
+        empty = Lambda(zeroer, name='predictions'+'_'+suf+'_zeroer')(mbox_loc)
         predictions = Concatenate(axis=2, name='predictions'+suf)([mbox_conf_softmax, mbox_loc, mbox_priorbox,empty])
         
         # predictions = Concatenate(axis=2, name='predictions'+suf)([mbox_conf_softmax, mbox_loc, mbox_priorbox])

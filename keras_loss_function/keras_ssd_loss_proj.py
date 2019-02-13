@@ -128,14 +128,14 @@ class SSDLoss:
 
         # 1: Compute the losses for class and box predictions for every box.
 
-        classification_loss = tf.to_float(self.log_loss(y_true[:,:,:-13], y_pred[:,:,:-13])) # Output shape: (batch_size, n_boxes)
-        localization_loss = tf.to_float(self.smooth_L1_loss(y_true[:,:,-13:-9], y_pred[:,:,-13:-9])) # Output shape: (batch_size, n_boxes)
+        classification_loss = tf.to_float(self.log_loss(y_true[:,:,:-16], y_pred[:,:,:-16])) # Output shape: (batch_size, n_boxes)
+        localization_loss = tf.to_float(self.smooth_L1_loss(y_true[:,:,-16:-12], y_pred[:,:,-16:-12])) # Output shape: (batch_size, n_boxes)
 
         # 2: Compute the classification losses for the positive and negative targets.
 
         # Create masks for the positive and negative ground truth classes.
         negatives = y_true[:,:,0] # Tensor of shape (batch_size, n_boxes)
-        positives = tf.to_float(tf.reduce_max(y_true[:,:,1:-13], axis=-1)) # Tensor of shape (batch_size, n_boxes)
+        positives = tf.to_float(tf.reduce_max(y_true[:,:,1:-16], axis=-1)) # Tensor of shape (batch_size, n_boxes)
 
         # Count the number of positive boxes (classes 1 to n) in y_true across the whole batch.
         n_positive = tf.reduce_sum(positives)
