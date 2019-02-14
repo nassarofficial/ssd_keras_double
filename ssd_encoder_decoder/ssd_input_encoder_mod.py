@@ -364,19 +364,20 @@ class SSDInputEncoder:
             # This is a matrix of shape `(num_ground_truth_boxes, num_anchor_boxes)`.
             # print("labels_one_hot: ", labels_one_hot.shape) 
             ### IM HERE HELLO!!!
-            print("before: ", labels[:,[xmin,ymin,xmax,ymax]].shape, y_encoded[i,:,-16:-12].shape)
             similarities = iou(labels[:,[xmin,ymin,xmax,ymax]], y_encoded[i,:,-16:-12], coords=self.coords, mode='outer_product', border_pixels=self.border_pixels)
-            print("after: ", similarities.shape)
-
+            print("labels: ", labels[:,[xmin,ymin,xmax,ymax]].shape)
+            print("y_encoded: ", y_encoded[i,:,-16:-12].shape)
+            print("similarities: ", similarities.shape)
             # First: Do bipartite matching, i.e. match each ground truth box to the one anchor box with the highest IoU.
             #        This ensures that each ground truth box will have at least one good match.
             # For each ground truth box, get the anchor box to match with it.
             bipartite_matches = match_bipartite_greedy(weight_matrix=similarities)
+            print("bipartite_matches: ", bipartite_matches.shape)
             y_encoded[i, bipartite_matches, :-12] = labels_one_hot[:,:-4]
             y_encoded[i, bipartite_matches, -1] = labels_one_hot[:,-1]
             # Set the columns of the matched anchor boxes to zero to indicate that they were matched.
             similarities[:, bipartite_matches] = 0
-
+            print("similarities after bipartite: ", similarities.shape)
             # Second: Maybe do 'multi' matching, where each remaining anchor box will be matched to its most similar
             #         ground truth box with an IoU of at least `pos_iou_threshold`, or not matched if there is no
             #         such ground truth box.
@@ -385,13 +386,16 @@ class SSDInputEncoder:
 
                 # Get all matches that satisfy the IoU threshold.
                 matches = match_multi(weight_matrix=similarities, threshold=self.pos_iou_threshold)
+                print("matches: ", matches[0].shape, " - ", matches[1].shape)
+
                 # Write the ground truth data to the matched anchor boxes.
                 loh = labels_one_hot[:,:-4]
                 y_encoded[i, matches[1], :-12] = loh[matches[0]]
                 # print("y_encoded: ",y_encoded)
-                # Set the columns of the matched anchor boxes to zero to indicate that they were matched.
+                # Set  columns of the matched anchor boxes to zero to indicate that they were matched.
                 similarities[:, matches[1]] = 0
-
+                print("similarities after matches: ", similarities.shape)
+                print("----------------------------------------------------------------------------")
             # Third: Now after the matching is done, all negative (background) anchor boxes that have
             #        an IoU of `neg_iou_limit` or more with any ground truth box will be set to netral,
             #        i.e. they will no longer be background boxes. These anchors are "too close" to a

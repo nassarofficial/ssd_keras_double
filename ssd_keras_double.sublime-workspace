@@ -99,24 +99,17 @@
 			"file": "data_generator/object_detection_2d_data_generator.py",
 			"settings":
 			{
-				"buffer_size": 76848,
+				"buffer_size": 68851,
 				"encoding": "UTF-8",
 				"line_ending": "Unix"
 			}
 		},
 		{
-			"file": "/home/nassar/RegisTree/lib/Old Version Py3/aerial_view.py",
+			"file": "models/keras_ssd300.py",
 			"settings":
 			{
-				"buffer_size": 17120,
-				"line_ending": "Unix"
-			}
-		},
-		{
-			"file": "/home/nassar/RegisTree/lib/Old Version Py3/street_view.py",
-			"settings":
-			{
-				"buffer_size": 63733,
+				"buffer_size": 46585,
+				"encoding": "UTF-8",
 				"line_ending": "Unix"
 			}
 		},
@@ -124,7 +117,16 @@
 			"file": "ssd_encoder_decoder/ssd_input_encoder_mod.py",
 			"settings":
 			{
-				"buffer_size": 43355,
+				"buffer_size": 42141,
+				"encoding": "UTF-8",
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "keras_loss_function/keras_ssd_loss_mod.py",
+			"settings":
+			{
+				"buffer_size": 12586,
 				"encoding": "UTF-8",
 				"line_ending": "Unix"
 			}
@@ -138,10 +140,18 @@
 			}
 		},
 		{
+			"file": "bounding_box_utils/bounding_box_utils.py",
+			"settings":
+			{
+				"buffer_size": 20072,
+				"line_ending": "Unix"
+			}
+		},
+		{
 			"file": "keras_loss_function/keras_ssd_loss_proj.py",
 			"settings":
 			{
-				"buffer_size": 23082,
+				"buffer_size": 12833,
 				"encoding": "UTF-8",
 				"line_ending": "Unix"
 			}
@@ -210,6 +220,10 @@
 	],
 	"file_history":
 	[
+		"/home/nassar/gits/ssd_keras_double/keras_loss_function/keras_ssd_loss.py",
+		"/home/nassar/gits/ssd_keras_double/ssd_encoder_decoder/ssd_input_encoder.py",
+		"/home/nassar/RegisTree/lib/Old Version Py3/street_view.py",
+		"/home/nassar/RegisTree/lib/Old Version Py3/aerial_view.py",
 		"/home/nassar/gits/ssd_keras_double/data_generator/object_detection_2d_misc_utils.py",
 		"/home/nassar/gits/ssd_keras_double/data_generator/object_detection_2d_geometric_ops.py",
 		"/home/nassar/gits/ssd_keras_double/train.py",
@@ -236,7 +250,6 @@
 		"/home/nassar/gits/ssd_keras/models/keras_ssd300.py",
 		"/home/nassar/gits/ssd_keras/ssd_encoder_decoder/ssd_output_decoder.py",
 		"/home/nassar/gits/ssd_keras/ssd_encoder_decoder/ssd_input_encoder.py",
-		"/home/nassar/RegisTree/lib/Old Version Py3/street_view.py",
 		"/home/nassar/gits/ssd_keras_modified/keras_layers/keras_layer_AnchorBoxes.py",
 		"/home/nassar/gits/ssd_keras_modified/ssd_encoder_decoder/ssd_input_encoder.py",
 		"/home/nassar/gits/ssd_keras_modified/data_generator/data_augmentation_chain_original_ssd.py",
@@ -319,7 +332,6 @@
 		"/home/nassar/TreeProject2/detection.py",
 		"/home/nassar/TreeProject-master-413c7150c32da2669ce3d23c5a3145fd526bd1b2/faster_rcnn_trees/experiments/script_faster_rcnn_aerial_trees_demo.m",
 		"/home/nassar/TreeProject_Edited/detection.py",
-		"/home/nassar/RegisTree/lib/Old Version Py3/aerial_view.py",
 		"/home/nassar/RegisTree/lib/Old Version Py3/detection.pyc",
 		"/home/nassar/RegisTree/detection_cache/aerial_proposals_0.json",
 		"/home/nassar/TreeProject_Edited/run_detection_experiments.py",
@@ -335,9 +347,7 @@
 		"/home/nassar/TreeProject-master-413c7150c32da2669ce3d23c5a3145fd526bd1b2/street_view.py",
 		"/home/nassar/pointnet/sem_seg/indoor3d_util.py",
 		"/home/nassar/pointnet/sem_seg/rte_subsample_1/rte_subsample_1.txt",
-		"/home/nassar/RegisTree/tf-faster-rcnn/experiments/scripts/test_faster_rcnn.sh",
-		"/home/nassar/RegisTree/tf-faster-rcnn/experiments/scripts/train_faster_rcnn.sh",
-		"/home/nassar/RegisTree/tf-faster-rcnn/lib/datasets/ground_eval.py"
+		"/home/nassar/RegisTree/tf-faster-rcnn/experiments/scripts/test_faster_rcnn.sh"
 	],
 	"find":
 	{
@@ -355,6 +365,18 @@
 		"case_sensitive": false,
 		"find_history":
 		[
+			"match_bipartite_greedy",
+			"SSDInputEncoder",
+			"coords",
+			"bounding_box_utils",
+			"iou",
+			"targeter_gt",
+			"metrics",
+			"metric",
+			"accuracy",
+			"print(",
+			"labels_output_format",
+			"here",
 			"labels_output_format",
 			"generate_encoding_template",
 			"generate_anchor_boxes_for_layer",
@@ -385,7 +407,7 @@
 	"groups":
 	[
 		{
-			"selected": 0,
+			"selected": 2,
 			"sheets":
 			[
 				{
@@ -394,15 +416,15 @@
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 76848,
+						"buffer_size": 68851,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								30145,
-								30145
+								63337,
+								63337
 							]
 						],
 						"settings":
@@ -412,87 +434,87 @@
 							"translate_tabs_to_spaces": true
 						},
 						"translation.x": 0.0,
-						"translation.y": 9174.0,
+						"translation.y": 12274.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 5,
+					"type": "text"
+				},
+				{
+					"buffer": 1,
+					"file": "models/keras_ssd300.py",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 46585,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								43713,
+								43713
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/Python/Python.sublime-syntax",
+							"tab_size": 4,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 10656.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 6,
+					"type": "text"
+				},
+				{
+					"buffer": 2,
+					"file": "ssd_encoder_decoder/ssd_input_encoder_mod.py",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 42141,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								25330,
+								25330
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/Python/Python.sublime-syntax",
+							"tab_size": 4,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 6187.0,
 						"zoom_level": 1.0
 					},
 					"stack_index": 0,
 					"type": "text"
 				},
 				{
-					"buffer": 1,
-					"file": "/home/nassar/RegisTree/lib/Old Version Py3/aerial_view.py",
-					"semi_transient": false,
-					"settings":
-					{
-						"buffer_size": 17120,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								3638,
-								3638
-							]
-						],
-						"settings":
-						{
-							"syntax": "Packages/Python/Python.sublime-syntax",
-							"tab_size": 2,
-							"translate_tabs_to_spaces": true
-						},
-						"translation.x": 0.0,
-						"translation.y": 4310.0,
-						"zoom_level": 1.0
-					},
-					"stack_index": 1,
-					"type": "text"
-				},
-				{
-					"buffer": 2,
-					"file": "/home/nassar/RegisTree/lib/Old Version Py3/street_view.py",
-					"semi_transient": false,
-					"settings":
-					{
-						"buffer_size": 63733,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								37021,
-								37021
-							]
-						],
-						"settings":
-						{
-							"syntax": "Packages/Python/Python.sublime-syntax",
-							"tab_size": 2,
-							"translate_tabs_to_spaces": true
-						},
-						"translation.x": 0.0,
-						"translation.y": 11790.0,
-						"zoom_level": 1.0
-					},
-					"stack_index": 2,
-					"type": "text"
-				},
-				{
 					"buffer": 3,
-					"file": "ssd_encoder_decoder/ssd_input_encoder_mod.py",
+					"file": "keras_loss_function/keras_ssd_loss_mod.py",
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 43355,
+						"buffer_size": 12586,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								42122,
-								42122
+								4389,
+								4389
 							]
 						],
 						"settings":
@@ -502,10 +524,10 @@
 							"translate_tabs_to_spaces": true
 						},
 						"translation.x": 0.0,
-						"translation.y": 10341.0,
+						"translation.y": 2484.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 3,
+					"stack_index": 1,
 					"type": "text"
 				},
 				{
@@ -521,8 +543,8 @@
 						"selection":
 						[
 							[
-								0,
-								0
+								784,
+								784
 							]
 						],
 						"settings":
@@ -532,27 +554,27 @@
 							"translate_tabs_to_spaces": true
 						},
 						"translation.x": 0.0,
-						"translation.y": 6287.0,
+						"translation.y": 0.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 5,
+					"stack_index": 2,
 					"type": "text"
 				},
 				{
 					"buffer": 5,
-					"file": "keras_loss_function/keras_ssd_loss_proj.py",
+					"file": "bounding_box_utils/bounding_box_utils.py",
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 23082,
+						"buffer_size": 20072,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								2801,
-								2801
+								1051,
+								1051
 							]
 						],
 						"settings":
@@ -562,10 +584,40 @@
 							"translate_tabs_to_spaces": true
 						},
 						"translation.x": 0.0,
-						"translation.y": 676.0,
+						"translation.y": 4482.0,
 						"zoom_level": 1.0
 					},
 					"stack_index": 4,
+					"type": "text"
+				},
+				{
+					"buffer": 6,
+					"file": "keras_loss_function/keras_ssd_loss_proj.py",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 12833,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								6113,
+								6113
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/Python/Python.sublime-syntax",
+							"tab_size": 4,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 2754.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 3,
 					"type": "text"
 				}
 			]
@@ -651,7 +703,7 @@
 	"show_minimap": true,
 	"show_open_files": true,
 	"show_tabs": true,
-	"side_bar_visible": true,
+	"side_bar_visible": false,
 	"side_bar_width": 326.0,
 	"status_bar_visible": true,
 	"template_settings":
