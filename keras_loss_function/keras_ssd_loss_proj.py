@@ -21,6 +21,11 @@ import tensorflow as tf
 import math
 import keras.backend as K
 import numpy as np
+from bounding_box_utils.bounding_box_utils import iou, convert_coordinates
+from ssd_encoder_decoder.matching_utils import match_bipartite_greedy, match_multi
+
+
+
 class SSDLoss_proj:
     '''
     The SSD loss, see https://arxiv.org/abs/1512.02325.
@@ -184,9 +189,9 @@ class SSDLoss_proj:
             gt = K.concatenate([ext,gt], axis=1)
             return gt
 
-        def equalalready(pred): return pred
+        def equalalready(gt, pred): return pred
 
-        def make_equal(self,pred, gt):
+        def make_equal(pred, gt):
             equal_tensor = tf.cond(tf.shape(pred)[1] < tf.shape(gt)[1], lambda: gt_rem(pred, gt), lambda: gt_add(pred, gt), name="make_equal_cond")
             return equal_tensor
 
@@ -194,18 +199,20 @@ class SSDLoss_proj:
             pred = 0
             gt = 0
             for i in range(bsz):
-                filterer = np.where(y_true_1[i,:,-1]!=99)
-                y_true_new = tf.where(tf.not_equal(y_true_1[i,:,-1],99))
-                y_true_new = y_true_1[i,filterer,:]
-                iou_out = tf.py_func(iou, [y_true_new[0,:,-16:-12],tf.convert_to_tensor(y_true_1[i,:,-16:-12])], tf.float64, name="iou_out")
+                filterer = tf.where(tf.not_equal(y_true_1[i,:,-1],99))
+                y_true_new = tf.gather_nd(y_true_1[i,:,:],filterer)
+                y_true_new = tf.expand_dims(y_true_new, 0)
+                iou_out = tf.py_func(iou, [y_true_new[i,:,-16:-12],tf.convert_to_tensor(y_true_1[i,:,-16:-12])], tf.float64, name="iou_out")
                 bipartite_matches = tf.py_func(match_bipartite_greedy, [iou_out], tf.int64, name="bipartite_matches")
                 out = tf.gather(y_pred_2[i,:,:], [bipartite_matches], axis=0, name="out")
                 
-                filterer_2 = np.where(y_true_2[i,:,-1]!=99)
-                y_true_2_new = y_true_2[i,filterer_2,:]
-                box_comparer = tf.reduce_all(tf.equal(tf.shape(out)[1], y_true_2_new.shape[1]), name="box_comparer")
-                y_true_2_new = tf.convert_to_tensor(y_true_2_new)
-                y_true_2_equal = tf.cond(box_comparer, lambda: equalalready(y_true_2_new), lambda: make_equal(out, y_true_2_new), name="y_true_cond")
+                filterer_2 = tf.where(tf.not_equal(y_true_2[i,:,-1],99))
+                y_true_2_new = tf.gather_nd(y_true_2[i,:,:],filterer_2)
+                y_true_2_new = tf.expand_dims(y_true_2_new, 0)
+
+                box_comparer = tf.reduce_all(tf.equal(tf.shape(out)[1], tf.shape(y_true_2_new)[1]), name="box_comparer")
+                y_true_2_equal = tf.cond(box_comparer, lambda: equalalready(out, y_true_2_new), lambda: make_equal(out, y_true_2_new), name="y_true_cond")
+
                 if i != 0:
                     pred = K.concatenate([pred,out], axis=-1)
                     gt = K.concatenate([gt,y_true_2_equal], axis=0)
@@ -215,22 +222,22 @@ class SSDLoss_proj:
             return pred, gt
 
         y_pred, y_true = matcher(y_true_1,y_pred_1,y_true_2,y_pred_2,1)
-
-
+        print(y_pred)
+        print(y_true)
+        
         batch_size = tf.shape(y_pred)[0] # Output dtype: tf.int32
         n_boxes = tf.shape(y_pred)[1] # Output dtype: tf.int32, note that `n_boxes` in this context denotes the total number of boxes per image, not the number of boxes per cell.
 
         # 1: Compute the losses for class and box predictions for every box.
 
-        classification_loss = tf.to_float(self.log_loss(y_true1[:,:,:-16], y_pred1[:,:,:-16])) # Output shape: (batch_size, n_boxes)
-        localization_loss = tf.to_float(self.smooth_L1_loss(y_true1[:,:,-16:-12], y_pred1[:,:,-16:-12])) # Output shape: (batch_size, n_boxes)
+        classification_loss = tf.to_float(self.log_loss(y_true[:,:,:-16], y_pred[:,:,:-16])) # Output shape: (batch_size, n_boxes)
+        localization_loss = tf.to_float(self.smooth_L1_loss(y_true[:,:,-16:-12], y_pred[:,:,-16:-12])) # Output shape: (batch_size, n_boxes)
 
         # 2: Compute the classification losses for the positive and negative targets.
 
         # Create masks for the positive and negative ground truth classes.
-        negatives = y_true1[:,:,0] # Tensor of shape (batch_size, n_boxes)
-        positives = tf.to_float(tf.reduce_max(y_true1[:,:,1:-16], axis=-1)) # Tensor of shape (batch_size, n_boxes)
-
+        negatives = y_true[:,:,0] # Tensor of shape (batch_size, n_boxes)
+        positives = tf.to_float(tf.reduce_max(y_true[:,:,1:-16], axis=-1)) # Tensor of shape (batch_size, n_boxes)
         # Count the number of positive boxes (classes 1 to n) in y_true across the whole batch.
         n_positive = tf.reduce_sum(positives)
 
