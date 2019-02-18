@@ -127,7 +127,6 @@ class SSDLoss:
         n_boxes = tf.shape(y_pred)[1] # Output dtype: tf.int32, note that `n_boxes` in this context denotes the total number of boxes per image, not the number of boxes per cell.
 
         # 1: Compute the losses for class and box predictions for every box.
-
         classification_loss = tf.to_float(self.log_loss(y_true[:,:,:-16], y_pred[:,:,:-16])) # Output shape: (batch_size, n_boxes)
         localization_loss = tf.to_float(self.smooth_L1_loss(y_true[:,:,-16:-12], y_pred[:,:,-16:-12])) # Output shape: (batch_size, n_boxes)
 
@@ -204,5 +203,4 @@ class SSDLoss:
         # (by which we're dividing in the line above), not the batch size. So in order to revert Keras' averaging
         # over the batch size, we'll have to multiply by it.
         total_loss = total_loss * tf.to_float(batch_size)
-
         return total_loss

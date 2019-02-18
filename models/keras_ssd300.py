@@ -358,10 +358,10 @@ def ssd_300(image_size,
 
         w = y_in[...,-10] * y_in[...,-2] # w = exp(w_pred * variance_w) * w_anchor
         h = y_in[...,-9] * y_in[...,-1] # h = exp(h_pred * variance_h) * h_anchor
-        cx = tf.where(tf.is_nan(cx), tf.zeros_like(cx), cx)
-        cy = tf.where(tf.is_nan(cy), tf.zeros_like(cy), cy)
-        w = tf.where(tf.is_nan(w), tf.zeros_like(w), w)
-        h = tf.where(tf.is_nan(h), tf.zeros_like(h), h)
+        cx = tf.where(tf.is_nan(cx), tf.ones_like(cx), cx) * 1e-8
+        cy = tf.where(tf.is_nan(cy), tf.ones_like(cy), cy) * 1e-8
+        w = tf.where(tf.is_nan(w), tf.ones_like(w), w) * 1e-8
+        h = tf.where(tf.is_nan(h), tf.ones_like(h), h) * 1e-8
 
         cx = tf.expand_dims(cx, axis=-1)
         cy = tf.expand_dims(cy, axis=-1)
@@ -408,20 +408,20 @@ def ssd_300(image_size,
         xmax_ = x_ + x_h
         ymax_ = y_ + y_h
 
-        xmin_ = tf.where(tf.is_nan(xmin_), tf.zeros_like(xmin_), xmin_)
-        ymin_ = tf.where(tf.is_nan(ymin_), tf.zeros_like(ymin_), ymin_)
-        xmax_ = tf.where(tf.is_nan(xmax_), tf.zeros_like(xmax_), xmax_)
-        ymax_ = tf.where(tf.is_nan(ymax_), tf.zeros_like(ymax_), ymax_)
+        xmin_ = tf.where(tf.is_nan(xmin_), tf.ones_like(xmin_), xmin_) * 1e-8
+        ymin_ = tf.where(tf.is_nan(ymin_), tf.ones_like(ymin_), ymin_) * 1e-8
+        xmax_ = tf.where(tf.is_nan(xmax_), tf.ones_like(xmax_), xmax_) * 1e-8
+        ymax_ = tf.where(tf.is_nan(ymax_), tf.ones_like(ymax_), ymax_) * 1e-8
 
         cx_ = tf.divide(tf.add(xmin_, xmax_), tf.constant(2.0, dtype=tf.float32))
         cy_ = tf.divide(tf.add(ymin_, ymax_), tf.constant(2.0, dtype=tf.float32))
         w_ = tf.subtract(xmax_,xmin_)
         h_ = tf.subtract(ymax_,ymin_)
 
-        cx_ = tf.where(tf.is_nan(cx_), tf.zeros_like(cx_), cx_)
-        cy_ = tf.where(tf.is_nan(cy_), tf.zeros_like(cy_), cy_)
-        w_ = tf.where(tf.is_nan(w_), tf.zeros_like(w_), w_)
-        h_ = tf.where(tf.is_nan(h_), tf.zeros_like(h_), h_)
+        cx_ = tf.where(tf.is_nan(cx_), tf.ones_like(cx_), cx_) * 1e-8
+        cy_ = tf.where(tf.is_nan(cy_), tf.ones_like(cy_), cy_) * 1e-8
+        w_ = tf.where(tf.is_nan(w_), tf.ones_like(w_), w_) * 1e-8
+        h_ = tf.where(tf.is_nan(h_), tf.ones_like(h_), h_) * 1e-8
 
         y_out = tf.concat([cx_/600,cy_/300,w_/600,h_/300], -1)
 
@@ -600,15 +600,16 @@ def ssd_300(image_size,
         predictions = Concatenate(axis=2, name='predictions'+suf)([mbox_conf_softmax, mbox_loc, mbox_priorbox,empty_4])
         
         # predictions = Concatenate(axis=2, name='predictions'+suf)([mbox_conf_softmax, mbox_loc, mbox_priorbox])
-        mbox_proj = Dense(32, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
-        mbox_proj = Dense(16, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
-        mbox_proj = Dense(8, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
-        mbox_proj = Dense(4, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
+        # mbox_proj = Dense(32, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
+        # mbox_proj = Dense(16, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
+        # mbox_proj = Dense(8, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
+        # mbox_proj = Dense(4, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
         # # mbox_proj_conv1 = tf.zeros(tf.shape(mbox_proj_conv1), dtype=tf.float32,name=None)
 
         # predictions_proj = Concatenate(axis=2, name='predictions'+suf+'_proj')([mbox_conf_softmax, mbox_proj, mbox_priorbox])
 
-        predictions_proj = Concatenate(axis=2, name='predictions'+suf+'_proj')([mbox_conf_softmax, mbox_proj, mbox_priorbox,empty_4])
+        predictions_proj = Concatenate(axis=2, name='predictions'+suf+'_proj')([predictions, mbox_conf_softmax, mbox_proj, mbox_priorbox,empty_4])
+
 
         # model = Model(input=[x,geo_1,geo_2],output=predictions)
         model = Model(input=[x,geo_1,geo_2],output=[predictions, predictions_proj])
@@ -631,11 +632,13 @@ def ssd_300(image_size,
 
 
     if mode == 'training':
-        pred_1_proj = Concatenate(axis=2, name='predictions_1_proj_tot')([ssd1.get_layer(name="predictions_1").output,ssd1.get_layer(name="predictions_1_proj").output])
-        pred_2_proj = Concatenate(axis=2, name='predictions_2_proj_tot')([ssd2.get_layer(name="predictions_2").output,ssd2.get_layer(name="predictions_2_proj").output])
+        # pred_1_proj = Concatenate(axis=2, name='predictions_1_proj_tot')([ssd1.get_layer(name="predictions_1").output,ssd1.get_layer(name="predictions_1_proj").output])
+        # pred_2_proj = Concatenate(axis=2, name='predictions_2_proj_tot')([ssd2.get_layer(name="predictions_2").output,ssd2.get_layer(name="predictions_2_proj").output])
 
-        model = Model(inputs=[X, Z, X_geo, Z_geo], outputs=[ssd1.get_layer(name="predictions_1").output,ssd2.get_layer(name="predictions_2").output,pred_1_proj,pred_2_proj])
-        # model = Model(inputs=[x, x_x, geo_1, geo_2], outputs=[ssd1.get_layer("predictions_1").output, ssd1.get_layer("predictions_1_proj").output])
+        # model = Model(inputs=[X, Z, X_geo, Z_geo], outputs=[ssd1.get_layer(name="predictions_1").output,ssd2.get_layer(name="predictions_2").output,pred_1_proj,pred_2_proj])
+        model = Model(inputs=[X, Z, X_geo, Z_geo], outputs=[ssd1.get_layer(name="predictions_1").output,ssd2.get_layer(name="predictions_2").output,ssd1.get_layer(name="predictions_1_proj").output,ssd2.get_layer(name="predictions_2_proj").output])
+
+        # model = Model(inputs=[X, Z, X_geo, Z_geo], outputs=[ssd1.get_layer("predictions_1").output, ssd2.get_layer("predictions_2").output])
         # model = Model(inputs=[x, x_x, geo_1, geo_2], outputs=ssd1.get_layer("predictions_1").output)
         # model = Model(inputs=[X, Z, X_geo, Z_geo], outputs=[preds_1, preds_2])
 
