@@ -161,15 +161,17 @@ class Resize_Modified:
                 labels = np.copy(labels)
                 labels[:, [ymin+1, ymax+1]] = np.round(labels[:, [ymin+1, ymax+1]] * (img_height / self.out_height), decimals=0)
                 labels[:, [xmin+1, xmax+1]] = np.round(labels[:, [xmin+1, xmax+1]] * (img_width / self.out_width), decimals=0)
+                return labels
 
+            def inverter1(labels1):
                 labels1 = np.copy(labels1)
                 labels1[:, [ymin1+1, ymax1+1]] = np.round(labels1[:, [ymin1+1, ymax1+1]] * (img_height / self.out_height), decimals=0)
                 labels1[:, [xmin1+1, xmax1+1]] = np.round(labels1[:, [xmin1+1, xmax1+1]] * (img_width / self.out_width), decimals=0)
-                return labels, labels1
+                return labels1
 
         if labels is None:
             if return_inverter:
-                return image, inverter
+                return image, inverter, image1, inverter1
             else:
                 return image, image1
         else:
@@ -186,12 +188,13 @@ class Resize_Modified:
                 labels = self.box_filter(labels=labels,
                                          image_height=self.out_height,
                                          image_width=self.out_width)
+                
                 labels1 = self.box_filter(labels=labels1,
                                          image_height=self.out_height,
                                          image_width=self.out_width)
 
             if return_inverter:
-                return image, labels, inverter
+                return image, labels, image1, labels1, inverter, inverter1
             else:
                 return image, labels, image1, labels1
 

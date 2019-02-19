@@ -637,10 +637,12 @@ def ssd_300(image_size,
 
         # model = Model(inputs=[X, Z, X_geo, Z_geo], outputs=[ssd1.get_layer("predictions_1").output, ssd2.get_layer("predictions_2").output])
         # model = Model(inputs=[x, x_x, geo_1, geo_2], outputs=ssd1.get_layer("predictions_1").output)
-        # model = Model(inputs=[X, Z, X_geo, Z_geo], outputs=[preds_1, preds_2])
 
 
     elif mode == 'inference':
+
+        predictions = Concatenate(axis=2, name='predictions_inference')([ssd1.get_layer(name="predictions_1").output,ssd2.get_layer(name="predictions_2").output,ssd1.get_layer(name="predictions_1_proj").output,ssd2.get_layer(name="predictions_2_proj").output])
+
         decoded_predictions = DecodeDetections(confidence_thresh=confidence_thresh,
                                                iou_threshold=iou_threshold,
                                                top_k=top_k,
@@ -650,7 +652,8 @@ def ssd_300(image_size,
                                                img_height=img_height,
                                                img_width=img_width,
                                                name='decoded_predictions')(predictions)
-        model = Model(inputs=x, outputs=decoded_predictions)
+
+        model = Model(inputs=[X, Z, X_geo, Z_geo], outputs=decoded_predictions)
     elif mode == 'inference_fast':
         decoded_predictions = DecodeDetectionsFast(confidence_thresh=confidence_thresh,
                                                    iou_threshold=iou_threshold,

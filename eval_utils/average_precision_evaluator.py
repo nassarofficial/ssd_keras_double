@@ -25,9 +25,9 @@ import sys
 import warnings
 
 from data_generator.object_detection_2d_data_generator import DataGenerator
-from data_generator.object_detection_2d_geometric_ops import Resize
+from data_generator.object_detection_2d_geometric_ops import Resize_Modified
 from data_generator.object_detection_2d_patch_sampling_ops import RandomPadFixedAR
-from data_generator.object_detection_2d_photometric_ops import ConvertTo3Channels
+from data_generator.object_detection_2d_photometric_ops import ConvertTo3Channels_Modified
 from ssd_encoder_decoder.ssd_output_decoder import decode_detections
 from data_generator.object_detection_2d_misc_utils import apply_inverse_transforms
 
@@ -316,13 +316,13 @@ class Evaluator:
         # Configure the data generator for the evaluation.
         #############################################################################################
 
-        convert_to_3_channels = ConvertTo3Channels()
-        resize = Resize(height=img_height,width=img_width, labels_format=self.gt_format)
+        convert_to_3_channels = ConvertTo3Channels_Modified()
+        resize = Resize_Modified(height=img_height,width=img_width, labels_format=self.gt_format)
         if data_generator_mode == 'resize':
             transformations = [convert_to_3_channels,
                                resize]
         elif data_generator_mode == 'pad':
-            random_pad = RandomPadFixedAR(patch_aspect_ratio=img_width/img_height, labels_format=self.gt_format)
+            random_pad = RandomPadFixedAR_Modified(patch_aspect_ratio=img_width/img_height, labels_format=self.gt_format)
             transformations = [convert_to_3_channels,
                                random_pad,
                                resize]
@@ -330,7 +330,7 @@ class Evaluator:
             raise ValueError("`data_generator_mode` can be either of 'resize' or 'pad', but received '{}'.".format(data_generator_mode))
 
         # Set the generator parameters.
-        generator = self.data_generator.generate(batch_size=batch_size,
+        generator = self.data_generator.generate_inf(batch_size=batch_size,
                                                  shuffle=False,
                                                  transformations=transformations,
                                                  label_encoder=None,
@@ -373,9 +373,9 @@ class Evaluator:
         # Loop over all batches.
         for j in tr:
             # Generate batch.
-            batch_X, batch_image_ids, batch_eval_neutral, batch_inverse_transforms, batch_orig_labels = next(generator)
+            batch_X, batch_Z, geox, geoz, batch_image_ids, batch_eval_neutral, batch_inverse_transforms,batch_inverse_transforms1, batch_orig_labels,batch_orig_labels1 = next(generator)
             # Predict.
-            y_pred = self.model.predict(batch_X)
+            y_pred = self.model.predict([batch_X,batch_Z,geox,geoz])
             # If the model was created in 'training' mode, the raw predictions need to
             # be decoded and filtered, otherwise that's already taken care of.
             if self.model_mode == 'training':
@@ -508,16 +508,20 @@ class Evaluator:
             tr = trange(len(ground_truth), file=sys.stdout)
         else:
             tr = range(len(ground_truth))
-
+        print("tr: ",len(tr))
         # Iterate over the ground truth for all images in the dataset.
+        print("eval neut: ", self.data_generator.eval_neutral)
+        print("eval neut len: ", len(self.data_generator.eval_neutral))
         for i in tr:
 
             boxes = np.asarray(ground_truth[i])
-
+            print("boxes: ",boxes)
             # Iterate over all ground truth boxes for the current image.
+            print(boxes.shape[0])
             for j in range(boxes.shape[0]):
-
+                print("j: ",j)
                 if ignore_neutral_boxes and not (self.data_generator.eval_neutral is None):
+                    print("enter")
                     if not self.data_generator.eval_neutral[i][j]:
                         # If this box is not supposed to be evaluation-neutral,
                         # increment the counter for the respective class ID.
