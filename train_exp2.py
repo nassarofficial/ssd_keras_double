@@ -277,10 +277,8 @@ callbacks = [
             early_stopping,
             terminate_on_nan,
 #             printer_callback,
-            tbCallBack
+            tbCallBack]
             
-
-# If you're resuming a previous training, set `initial_epoch` and `final_epoch` accordingly.
 initial_epoch   = 0
 final_epoch     = 500
 steps_per_epoch = 1000
