@@ -378,6 +378,9 @@ class Evaluator:
             y_pred = self.model.predict([batch_X,batch_Z,geox,geoz])
             # If the model was created in 'training' mode, the raw predictions need to
             # be decoded and filtered, otherwise that's already taken care of.
+            print("Test: ", y_pred.shape)
+            print("y_pred: ", y_pred)
+
             if self.model_mode == 'training':
                 # Decode.
                 y_pred = decode_detections(y_pred,

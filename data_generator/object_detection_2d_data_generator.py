@@ -88,7 +88,7 @@ class DataGenerator:
                  labels=None,
                  image_ids=None,
                  eval_neutral=None,
-                 labels_output_format=('class_id', 'xmin', 'ymin', 'xmax', 'ymax', 'target_id','yaw','lat','lng','distance'),
+                 labels_output_format=('class_id', 'xmin', 'ymin', 'xmax', 'ymax', 'target_id','distance','pano_lat','pano_lng','yaw','lat','lng'),
                  verbose=True):
         '''
         Initializes the data generator. You can either load a dataset directly here in the constructor,
@@ -143,10 +143,13 @@ class DataGenerator:
                             'xmax': labels_output_format.index('xmax'),
                             'ymax': labels_output_format.index('ymax'),
                             'target_id': labels_output_format.index('target_id'),
-                            'yaw': labels_output_format.index('yaw'),
+                            'distance': labels_output_format.index('distance'),
                             'lat': labels_output_format.index('lat'),
                             'lng': labels_output_format.index('lng'),
-                            'distance': labels_output_format.index('distance')} # This dictionary is for internal use.
+                            'pano_lat': labels_output_format.index('pano_lat'),
+                            'pano_lng': labels_output_format.index('pano_lng'),
+                            'yaw': labels_output_format.index('yaw')
+                                } # This dictionary is for internal use.
 
         self.dataset_size = 0 # As long as we haven't loaded anything yet, the dataset size is zero.
         self.load_images_into_memory = load_images_into_memory
@@ -271,10 +274,6 @@ class DataGenerator:
                 self.eval_neutral.append(eval_neutral[i])
 
 
-    def haversine_distance(lat1, lon1, lat2, lon2):
-        a = math.sin(math.radians((lat2-lat1)/2.0))**2 + math.cos(math.radians(lat1))*math.cos(math.radians(lat2))*math.sin(math.radians((lon2-lon1)/2.0))**2
-        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
-        return EARTH_RADIUS*c
 
     def parse_xml(self,
                   images_dirs,
@@ -323,6 +322,14 @@ class DataGenerator:
             and a list indicating which boxes are annotated with the label "difficult".
         '''
         # Set class members.
+        EARTH_RADIUS = 6371000  # Radius in meters of Earth
+        GOOGLE_CAR_CAMERA_HEIGHT = 3 # ballpark estimate of the number of meters that camera is off the ground
+
+        def haversine_distance(lat1, lon1, lat2, lon2):
+            a = math.sin(math.radians((lat2-lat1)/2.0))**2 + math.cos(math.radians(lat1))*math.cos(math.radians(lat2))*math.sin(math.radians((lon2-lon1)/2.0))**2
+            c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+            return EARTH_RADIUS*c
+
         self.images_dirs = images_dirs
         self.annotations_dirs = annotations_dirs
         self.image_set_filenames = image_set_filenames
@@ -376,6 +383,12 @@ class DataGenerator:
                     #         objects = [target]
 
                     # Parse the data for each object.
+                    pano_lat = float(soup.panocoords.text.split(",")[0])
+                    pano_lng = float(soup.panocoords.text.split(",")[1])
+                    yaw = float(soup.yaw.text)
+                    lat_ = float(soup.location.text.split(",")[0])
+                    lng_ = float(soup.location.text.split(",")[1])                                     
+                    distance = haversine_distance(pano_lat,pano_lng,lat_,lng_)
 
                     # Parse the data for each object.
                     for obj in objects:
@@ -394,21 +407,11 @@ class DataGenerator:
                         ymin = int(bndbox.ymin.text)
                         xmax = int(bndbox.xmax.text)
                         ymax = int(bndbox.ymax.text)
-                        yaw = float(soup.yaw.text)
-                        lat_ = float(soup.panocoords.text.split(",")[0])
-                        lng_ = float(soup.panocoords.text.split(",")[1])                                     
                         try:
                             target_id = int(obj.find('ID', recursive=False).text)
-                            pano_lat = float(soup.location.text.split(",")[0])
-                            pano_lng = float(soup.location.text.split(",")[1])
                             #lat1, lon1, lat2, lon2
-                            distance = haversine_distance(pano_lat,pano_lng,lat_,lng_)
-
                         except:
                             target_id = int(99)
-                            distance = 89
-                            lat = 98
-                            lng = 189
 
                         item_dict = {'folder': folder,
                                      'image_name': filename,
@@ -424,9 +427,11 @@ class DataGenerator:
                                      'ymax': ymax,
                                      'distance':int(distance),
                                      'target_id':target_id,
-                                     'yaw':yaw,
                                      'lat':lat_,
-                                     'lng':lng_
+                                     'lng':lng_,
+                                     'yaw':yaw,
+                                     'pano_lat':pano_lat,
+                                     'pano_lng':pano_lng
                                     }                        
                         box = []
                         for item in self.labels_output_format:
@@ -435,6 +440,7 @@ class DataGenerator:
                         if difficult: eval_neutr.append(True)
                         else: eval_neutr.append(False)
 
+                    ###################################################################################
                     with open(os.path.join(annotations_dir, image_id[1] + '.xml')) as f:
                         soup = BeautifulSoup(f, 'xml')
 
@@ -444,6 +450,13 @@ class DataGenerator:
                     boxes1 = [] # We'll store all boxes for this image here.
                     eval_neutr1 = [] # We'll store whether a box is annotated as "difficult" here.
                     objects = soup.find_all('object') # Get a list of all objects in this image.
+                    pano_lat = float(soup.panocoords.text.split(",")[0])
+                    pano_lng = float(soup.panocoords.text.split(",")[1])
+                    yaw = float(soup.yaw.text)
+                    lat_ = float(soup.location.text.split(",")[0])
+                    lng_ = float(soup.location.text.split(",")[1])                                     
+                    distance = haversine_distance(pano_lat,pano_lng,lat_,lng_)
+
 
                     # Parse the data for each object.
                     for obj in objects:
@@ -462,20 +475,12 @@ class DataGenerator:
                         ymin = int(bndbox.ymin.text)
                         xmax = int(bndbox.xmax.text)
                         ymax = int(bndbox.ymax.text)
-                        yaw = float(soup.yaw.text)
-                        lat_ = float(soup.panocoords.text.split(",")[0])
-                        lng_ = float(soup.panocoords.text.split(",")[1])                                     
                         try:
                             target_id = int(obj.find('ID', recursive=False).text)
-                            pano_lat = float(soup.location.text.split(",")[0])
-                            pano_lng = float(soup.location.text.split(",")[1])
                             #lat1, lon1, lat2, lon2
-                            distance = haversine_distance(pano_lat,pano_lng,lat_,lng_)
+
                         except:
-                            target_id = 99
-                            distance = 89
-                            lat = 98
-                            lng = 189
+                            target_id = int(99)
 
                         item_dict = {'folder': folder,
                                      'image_name': filename,
@@ -491,9 +496,11 @@ class DataGenerator:
                                      'ymax': ymax,
                                      'distance':int(distance),
                                      'target_id':target_id,
-                                     'yaw':yaw,
                                      'lat':lat_,
-                                     'lng':lng_
+                                     'lng':lng_,
+                                     'yaw':yaw,
+                                     'pano_lat':pano_lat,
+                                     'pano_lng':pano_lng
                                     }                        
                         box = []
                         for item in self.labels_output_format:
@@ -947,8 +954,7 @@ class DataGenerator:
                                      #                     'xmin': xmin,
                     batch_geox.append(np.tile(np.array(batch_y[i],dtype=np.float64)[0,-3:], (17292,1)))
                     batch_geoz.append(np.tile(np.array(batch_w[i],dtype=np.float64)[0,-3:], (17292,1)))
-                    # print("batch_y full: ", np.array(batch_y[i])[:,:])
-                    # print("batch_w full: ", np.array(batch_y[i])[:,:])
+
                     batch_y[i] = np.array(batch_y[i])
                     batch_w[i] = np.array(batch_w[i])
                     # If this image has no ground truth boxes, maybe we don't want to keep it in the batch.
@@ -972,7 +978,7 @@ class DataGenerator:
                                 inverse_transforms.append(inverse_transform)
                                 inverse_transforms1.append(inverse_transform1)
                             else:       
-                                batch_X[i], batch_y[i], batch_Z[i], batch_w[i] = transform(batch_X[i], batch_Z[i], batch_y[i], batch_w[i])
+                                batch_X[i], batch_y[i], batch_Z[i], batch_w[i] = transform(batch_X[i], batch_y[i], batch_Z[i], batch_w[i])
 
                             if batch_X[i] is None: # In case the transform failed to produce an output image, which is possible for some random transforms.
                                 batch_items_to_remove.append(i)
@@ -1071,12 +1077,6 @@ class DataGenerator:
             #########################################################################################
             # If we have a label encoder, encode our labels.
             #########################################################################################
-            # def targeter_gt(gt):
-            #     args = np.where(gt[:,:,-1]!=99)
-            #     searcher = []
-            #     for x in args[1]:
-            #         searcher.append(x)
-            #     return gt[:,searcher,:]
             if not (label_encoder is None or self.labels is None):
 
                 if ('matched_anchors' in returns) and isinstance(label_encoder, SSDInputEncoder):
@@ -1084,18 +1084,11 @@ class DataGenerator:
                     batch_y_encoded, batch_matched_anchors = label_encoder(batch_y, diagnostics=True)
                     batch_y_encoded1, batch_matched_anchors1 = label_encoder(batch_w, diagnostics=True)
 
-                    # batch_y_encoded_f = np.concatenate([batch_y_encoded,batch_y_encoded1,batch_y_geo])
-
-                    # batch_matched_anchors_f = np.concatenate([batch_matched_anchors,batch_matched_anchors1])
                 else:
-                    # print("BATCH_Y: ",batch_y)
-                    # print("BATCH_W: ",batch_w)
 
                     batch_y_encoded_1 = label_encoder(batch_y, diagnostics=False)
                     batch_y_encoded_2 = label_encoder(batch_w, diagnostics=False)
-                    # batch_y_encoded_1_proj = targeter_gt(batch_y_encoded_1)
-                    # batch_y_encoded_2_proj = targeter_gt(batch_y_encoded_2)
-                    # print("batch_y_encoded: ", batch_y_encoded.shape)
+
                     batch_matched_anchors = None
 
             else:
@@ -1111,7 +1104,7 @@ class DataGenerator:
             # np.save('outputs/predder.npy', [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded_1,"predictions_2": batch_y_encoded_2,"predictions_1_proj": [batch_y_encoded_1,batch_y_encoded_2_proj],"predictions_2_proj": [batch_y_encoded_2,batch_y_encoded_1_proj]}])
             # yield [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded_1,"predictions_2": batch_y_encoded_2,"predictions_1_proj": [batch_y_encoded_1,batch_y_encoded_2_proj],"predictions_2_proj": [batch_y_encoded_2,batch_y_encoded_1_proj]}]
 
-            # np.save('outputs/predder.npy', [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded_1,"predictions_2": batch_y_encoded_2,"predictions_1_proj": np.concatenate([batch_y_encoded_1,batch_y_encoded_2],2),"predictions_2_proj": np.concatenate([batch_y_encoded_2,batch_y_encoded_1],2)}])
+            np.save('outputs/predder.npy', [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded_1,"predictions_2": batch_y_encoded_2,"predictions_1_proj": np.concatenate([batch_y_encoded_1,batch_y_encoded_2],2),"predictions_2_proj": np.concatenate([batch_y_encoded_2,batch_y_encoded_1],2)}])
             yield [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded_1,"predictions_2": batch_y_encoded_2,"predictions_1_proj": np.concatenate([batch_y_encoded_1,batch_y_encoded_2],2),"predictions_2_proj": np.concatenate([batch_y_encoded_2,batch_y_encoded_1],2)}]
 
             # yield [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded_1,"predictions_2": batch_y_encoded_2}]

@@ -597,15 +597,15 @@ def ssd_300(image_size,
         empty_4 = Lambda(zeroer)(mbox_loc)
         empty_2 = Lambda(zeroer)(mbox_conf_softmax)
 
-        predictions = Concatenate(axis=2, name='predictions'+suf)([mbox_conf_softmax, mbox_loc, mbox_priorbox,empty_4])
+        predictions = Concatenate(axis=2, name='predictions'+suf)([mbox_conf_softmax, mbox_loc, mbox_priorbox,empty_4,empty_2])
         
-        mbox_proj = Dense(32, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
-        mbox_proj = Dense(16, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
-        mbox_proj = Dense(8, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
-        mbox_proj = Dense(4, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
+        # mbox_proj = Dense(32, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
+        # mbox_proj = Dense(16, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
+        # mbox_proj = Dense(8, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
+        # mbox_proj = Dense(4, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
 
 
-        predictions_proj = Concatenate(axis=2, name='predictions'+suf+'_proj')([predictions, mbox_conf_softmax, mbox_proj, mbox_priorbox,empty_4])
+        predictions_proj = Concatenate(axis=2, name='predictions'+suf+'_proj')([predictions, mbox_conf_softmax, mbox_proj, mbox_priorbox,empty_4,empty_2])
 
 
         # model = Model(input=[x,geo_1,geo_2],output=predictions)
@@ -654,6 +654,7 @@ def ssd_300(image_size,
                                                name='decoded_predictions')(predictions)
 
         model = Model(inputs=[X, Z, X_geo, Z_geo], outputs=decoded_predictions)
+
     elif mode == 'inference_fast':
         decoded_predictions = DecodeDetectionsFast(confidence_thresh=confidence_thresh,
                                                    iou_threshold=iou_threshold,
