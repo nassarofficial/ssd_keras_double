@@ -520,17 +520,6 @@ class Evaluator:
             print(boxes.shape[0])
             for j in range(boxes.shape[0]):
                 print("j: ",j)
-                if ignore_neutral_boxes and not (self.data_generator.eval_neutral is None):
-                    print("enter")
-                    if not self.data_generator.eval_neutral[i][j]:
-                        # If this box is not supposed to be evaluation-neutral,
-                        # increment the counter for the respective class ID.
-                        class_id = boxes[j, class_id_index]
-                        num_gt_per_class[class_id] += 1
-                else:
-                    # If there is no such thing as evaluation-neutral boxes for
-                    # our dataset, always increment the counter for the respective
-                    # class ID.
                     class_id = boxes[j, class_id_index]
                     num_gt_per_class[class_id] += 1
 
