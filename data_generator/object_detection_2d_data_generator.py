@@ -335,10 +335,13 @@ class DataGenerator:
         self.labels = []
         self.labels1 = []
         self.eval_neutral = []
+        self.eval_neutral1 = []
         if not annotations_dirs:
             self.labels = None
             self.labels1 = None
             self.eval_neutral = None
+            self.eval_neutral1 = None
+
             annotations_dirs = [None] * len(images_dirs)
 
         for images_dir, image_set_filename, annotations_dir in zip(images_dirs, image_set_filenames, annotations_dirs):
@@ -501,7 +504,8 @@ class DataGenerator:
 
                     self.labels.append(boxes)
                     self.labels1.append(boxes1)
-                    self.eval_neutral.append([eval_neutr,eval_neutr1])
+                    self.eval_neutral.append(eval_neutr)
+                    self.eval_neutral1.append(eval_neutr1)
 
         self.dataset_size = len(self.filenames)
         self.dataset_indices = np.arange(self.dataset_size, dtype=np.int32)
@@ -514,7 +518,7 @@ class DataGenerator:
                     self.images.append(np.array(image, dtype=np.uint8))
 
         if ret:
-            return self.images, self.filenames, self.labels, self.labels1, self.image_ids, self.eval_neutral
+            return self.images, self.filenames, self.labels, self.labels1, self.image_ids, self.eval_neutral, self.eval_neutral1
 
 
     def create_hdf5_dataset(self,
@@ -813,6 +817,8 @@ class DataGenerator:
                 objects_to_shuffle.append(self.image_ids)
             if not (self.eval_neutral is None):
                 objects_to_shuffle.append(self.eval_neutral)
+                objects_to_shuffle.append(self.eval_neutral1)
+
             shuffled_objects = sklearn.utils.shuffle(*objects_to_shuffle)
             for i in range(len(objects_to_shuffle)):
                 objects_to_shuffle[i][:] = shuffled_objects[i]
@@ -857,6 +863,7 @@ class DataGenerator:
                         objects_to_shuffle.append(self.image_ids)
                     if not (self.eval_neutral is None):
                         objects_to_shuffle.append(self.eval_neutral)
+                        objects_to_shuffle.append(self.eval_neutral1)
                     shuffled_objects = sklearn.utils.shuffle(*objects_to_shuffle)
                     for i in range(len(objects_to_shuffle)):
                         objects_to_shuffle[i][:] = shuffled_objects[i]
@@ -906,9 +913,10 @@ class DataGenerator:
                 batch_w = None
             if not (self.eval_neutral is None):
                 batch_eval_neutral = self.eval_neutral[current:current+batch_size]
+                batch_eval_neutral1 = self.eval_neutral1[current:current+batch_size]
             else:
                 batch_eval_neutral = None
-
+                batch_eval_neutral1 = None
             # Get the image IDs for this batch (if there are any).
             if not (self.image_ids is None):
                 batch_image_ids = self.image_ids[current:current+batch_size]
@@ -1037,6 +1045,7 @@ class DataGenerator:
                     if not (self.labels is None): batch_y.pop(j)
                     if not (self.image_ids is None): batch_image_ids.pop(j)
                     if not (self.eval_neutral is None): batch_eval_neutral.pop(j)
+                    if not (self.eval_neutral1 is None): batch_eval_neutral1.pop(j)
                     if 'original_images' in returns: batch_original_images.pop(j)
                     if 'original_labels' in returns and not (self.labels is None): batch_original_labels.pop(j)
 
@@ -1220,6 +1229,10 @@ class DataGenerator:
                 objects_to_shuffle.append(self.image_ids)
             if not (self.eval_neutral is None):
                 objects_to_shuffle.append(self.eval_neutral)
+<<<<<<< HEAD
+                objects_to_shuffle.append(self.eval_neutral1)
+=======
+>>>>>>> 28d2eabcb60c9a9280300a86d51d41a2f34a7839
             shuffled_objects = sklearn.utils.shuffle(*objects_to_shuffle)
             for i in range(len(objects_to_shuffle)):
                 objects_to_shuffle[i][:] = shuffled_objects[i]
@@ -1264,6 +1277,10 @@ class DataGenerator:
                         objects_to_shuffle.append(self.image_ids)
                     if not (self.eval_neutral is None):
                         objects_to_shuffle.append(self.eval_neutral)
+<<<<<<< HEAD
+                        objects_to_shuffle.append(self.eval_neutral1)
+=======
+>>>>>>> 28d2eabcb60c9a9280300a86d51d41a2f34a7839
                     shuffled_objects = sklearn.utils.shuffle(*objects_to_shuffle)
                     for i in range(len(objects_to_shuffle)):
                         objects_to_shuffle[i][:] = shuffled_objects[i]
@@ -1313,8 +1330,15 @@ class DataGenerator:
                 batch_w = None
             if not (self.eval_neutral is None):
                 batch_eval_neutral = self.eval_neutral[current:current+batch_size]
+<<<<<<< HEAD
+                batch_eval_neutral1 = self.eval_neutral1[current:current+batch_size]
             else:
                 batch_eval_neutral = None
+                batch_eval_neutral1 = None
+=======
+            else:
+                batch_eval_neutral = None
+>>>>>>> 28d2eabcb60c9a9280300a86d51d41a2f34a7839
 
             # Get the image IDs for this batch (if there are any).
             if not (self.image_ids is None):
@@ -1444,6 +1468,10 @@ class DataGenerator:
                     if not (self.labels is None): batch_y.pop(j)
                     if not (self.image_ids is None): batch_image_ids.pop(j)
                     if not (self.eval_neutral is None): batch_eval_neutral.pop(j)
+<<<<<<< HEAD
+                    if not (self.eval_neutral1 is None): batch_eval_neutral1.pop(j)
+=======
+>>>>>>> 28d2eabcb60c9a9280300a86d51d41a2f34a7839
                     if 'original_images' in returns: batch_original_images.pop(j)
                     if 'original_labels' in returns and not (self.labels is None): batch_original_labels.pop(j)
 
@@ -1468,7 +1496,11 @@ class DataGenerator:
 
 
             yield [batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64),
+<<<<<<< HEAD
+                    batch_image_ids,batch_eval_neutral,batch_eval_neutral1,batch_inverse_transforms,batch_inverse_transforms1,batch_original_labels,batch_original_labels1]
+=======
                     batch_image_ids,batch_eval_neutral,batch_inverse_transforms,batch_inverse_transforms1,batch_original_labels,batch_original_labels1]
+>>>>>>> 28d2eabcb60c9a9280300a86d51d41a2f34a7839
 
     def save_dataset(self,
                      filenames_path='filenames.pkl',

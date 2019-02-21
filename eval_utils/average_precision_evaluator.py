@@ -373,7 +373,11 @@ class Evaluator:
         # Loop over all batches.
         for j in tr:
             # Generate batch.
+<<<<<<< HEAD
+            batch_X, batch_Z, geox, geoz, batch_image_ids, batch_eval_neutral,batch_eval_neutral1, batch_inverse_transforms,batch_inverse_transforms1, batch_orig_labels,batch_orig_labels1 = next(generator)
+=======
             batch_X, batch_Z, geox, geoz, batch_image_ids, batch_eval_neutral, batch_inverse_transforms,batch_inverse_transforms1, batch_orig_labels,batch_orig_labels1 = next(generator)
+>>>>>>> 28d2eabcb60c9a9280300a86d51d41a2f34a7839
             # Predict.
             y_pred = self.model.predict([batch_X,batch_Z,geox,geoz])
             # If the model was created in 'training' mode, the raw predictions need to
@@ -401,7 +405,7 @@ class Evaluator:
             # Iterate over all batch items.
             for k, batch_item in enumerate(y_pred):
 
-                image_id = batch_image_ids[k]
+                image_id = batch_image_ids[k][0]
 
                 for box in batch_item:
                     class_id = int(box[class_id_pred])
@@ -508,6 +512,32 @@ class Evaluator:
             tr = trange(len(ground_truth), file=sys.stdout)
         else:
             tr = range(len(ground_truth))
+<<<<<<< HEAD
+        # print("tr: ",len(tr))
+        # Iterate over the ground truth for all images in the dataset.
+        # print("eval neut: ", self.data_generator.eval_neutral)
+        # print("eval neut len: ", len(self.data_generator.eval_neutral))
+        for i in tr:
+
+            boxes_gt = np.asarray(ground_truth[i],dtype=np.int64)
+            boxes = boxes_gt[:,:5]
+            print("boxes: ",boxes)
+            print("boxes shape: ",boxes.shape)
+            # Iterate over all ground truth boxes for the current image.
+            print(boxes.shape[0])
+            for j in range(boxes.shape[0]):
+                if not self.data_generator.eval_neutral[i][j]:
+                    # If this box is not supposed to be evaluation-neutral,
+                    # increment the counter for the respective class ID.
+                    class_id = boxes[j, class_id_index]
+                    # print("class_id after: ",class_id)
+                    # print("num_gt_per_class: ",num_gt_per_class)
+                    # print("class_id: ", type(class_id))
+
+                    num_gt_per_class[int(class_id)] += 1
+                    # print("num_gt_per_class after: ",num_gt_per_class)
+
+=======
         print("tr: ",len(tr))
         # Iterate over the ground truth for all images in the dataset.
         print("eval neut: ", self.data_generator.eval_neutral)
@@ -520,7 +550,21 @@ class Evaluator:
             print(boxes.shape[0])
             for j in range(boxes.shape[0]):
                 print("j: ",j)
+                if ignore_neutral_boxes and not (self.data_generator.eval_neutral is None):
+                    print("enter")
+                    if not self.data_generator.eval_neutral[i][j]:
+                        # If this box is not supposed to be evaluation-neutral,
+                        # increment the counter for the respective class ID.
+                        class_id = boxes[j, class_id_index]
+                        num_gt_per_class[class_id] += 1
+>>>>>>> 28d2eabcb60c9a9280300a86d51d41a2f34a7839
+                else:
+                    # If there is no such thing as evaluation-neutral boxes for
+                    # our dataset, always increment the counter for the respective
+                    # class ID.
+                    # print("class_id: ",class_id)
                     class_id = boxes[j, class_id_index]
+                    # print("num_gt_per_class: ",num_gt_per_class)
                     num_gt_per_class[class_id] += 1
 
         self.num_gt_per_class = num_gt_per_class
@@ -584,7 +628,7 @@ class Evaluator:
         ground_truth = {}
         eval_neutral_available = not (self.data_generator.eval_neutral is None) # Whether or not we have annotations to decide whether ground truth boxes should be neutral or not.
         for i in range(len(self.data_generator.image_ids)):
-            image_id = str(self.data_generator.image_ids[i])
+            image_id = str(self.data_generator.image_ids[i][0])
             labels = self.data_generator.labels[i]
             if ignore_neutral_boxes and eval_neutral_available:
                 ground_truth[image_id] = (np.asarray(labels), np.asarray(self.data_generator.eval_neutral[i]))
@@ -624,7 +668,11 @@ class Evaluator:
                                         ('xmax', 'f4'),
                                         ('ymax', 'f4')])
             # Create the structured array
+            print("predictions: ", predictions)
             predictions = np.array(predictions, dtype=preds_data_type)
+            print("preds_data_type: ", preds_data_type)
+            print("###################################################################################")
+
 
             # Sort the detections by decreasing confidence.
             descending_indices = np.argsort(-predictions['confidence'], kind=sorting_algorithm)
