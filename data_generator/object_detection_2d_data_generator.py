@@ -88,7 +88,7 @@ class DataGenerator:
                  labels=None,
                  image_ids=None,
                  eval_neutral=None,
-                 labels_output_format=('class_id', 'xmin', 'ymin', 'xmax', 'ymax', 'target_id','distance','pano_lat','pano_lng','yaw','lat','lng'),
+                 labels_output_format=('class_id', 'xmin', 'ymin', 'xmax', 'ymax', 'target_id','distance','lat','lng','yaw','pano_lat','pano_lng'),
                  verbose=True):
         '''
         Initializes the data generator. You can either load a dataset directly here in the constructor,
@@ -429,10 +429,10 @@ class DataGenerator:
                                      'target_id':target_id,
                                      'lat':lat_,
                                      'lng':lng_,
-                                     'yaw':yaw,
                                      'pano_lat':pano_lat,
-                                     'pano_lng':pano_lng
-                                    }                        
+                                     'pano_lng':pano_lng,
+                                     'yaw':yaw
+                                    }                                 
                         box = []
                         for item in self.labels_output_format:
                             box.append(item_dict[item])
@@ -454,7 +454,7 @@ class DataGenerator:
                     pano_lng = float(soup.panocoords.text.split(",")[1])
                     yaw = float(soup.yaw.text)
                     lat_ = float(soup.location.text.split(",")[0])
-                    lng_ = float(soup.location.text.split(",")[1])                                     
+                    lng_ = float(soup.location.text.split(",")[1])
                     distance = haversine_distance(pano_lat,pano_lng,lat_,lng_)
 
 
@@ -498,10 +498,10 @@ class DataGenerator:
                                      'target_id':target_id,
                                      'lat':lat_,
                                      'lng':lng_,
-                                     'yaw':yaw,
                                      'pano_lat':pano_lat,
-                                     'pano_lng':pano_lng
-                                    }                        
+                                     'pano_lng':pano_lng,
+                                     'yaw':yaw
+                                    }                                 
                         box = []
                         for item in self.labels_output_format:
                             box.append(item_dict[item])
@@ -1083,7 +1083,6 @@ class DataGenerator:
                     # print("BATCH_W: ",batch_w)
                     batch_y_encoded, batch_matched_anchors = label_encoder(batch_y, diagnostics=True)
                     batch_y_encoded1, batch_matched_anchors1 = label_encoder(batch_w, diagnostics=True)
-
                 else:
 
                     batch_y_encoded_1 = label_encoder(batch_y, diagnostics=False)
@@ -1094,6 +1093,7 @@ class DataGenerator:
             else:
                 batch_y_encoded = None
                 batch_matched_anchors = None
+            print("tttt: ", batch_y_encoded_1[0,1,:])
 
             #########################################################################################
             # Compose the output.
@@ -1103,7 +1103,8 @@ class DataGenerator:
 
             # np.save('outputs/predder.npy', [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded_1,"predictions_2": batch_y_encoded_2,"predictions_1_proj": [batch_y_encoded_1,batch_y_encoded_2_proj],"predictions_2_proj": [batch_y_encoded_2,batch_y_encoded_1_proj]}])
             # yield [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded_1,"predictions_2": batch_y_encoded_2,"predictions_1_proj": [batch_y_encoded_1,batch_y_encoded_2_proj],"predictions_2_proj": [batch_y_encoded_2,batch_y_encoded_1_proj]}]
-
+            # print("tttt: ", batch_y_encoded_1,batch_y_encoded_2)
+            # print("#######: ", batch_y_encoded_1.shape)
             np.save('outputs/predder.npy', [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded_1,"predictions_2": batch_y_encoded_2,"predictions_1_proj": np.concatenate([batch_y_encoded_1,batch_y_encoded_2],2),"predictions_2_proj": np.concatenate([batch_y_encoded_2,batch_y_encoded_1],2)}])
             yield [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded_1,"predictions_2": batch_y_encoded_2,"predictions_1_proj": np.concatenate([batch_y_encoded_1,batch_y_encoded_2],2),"predictions_2_proj": np.concatenate([batch_y_encoded_2,batch_y_encoded_1],2)}]
 

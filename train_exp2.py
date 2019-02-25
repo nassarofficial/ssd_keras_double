@@ -107,7 +107,7 @@ def Accuracy_proj(y_true, y_pred):
     result = tf.cond(tf.equal(tf.shape(y_true)[2],36), lambda: proj(y_pred, y_true), lambda: notproj(y_pred, y_true))
     return result
 
-adam = Adam(lr=0.0001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
+adam = Adam(lr=0.00001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
 
 ssd_loss1 = SSDLoss(neg_pos_ratio=3, alpha=1.0)
 ssd_loss2 = SSDLoss(neg_pos_ratio=3, alpha=1.0)
