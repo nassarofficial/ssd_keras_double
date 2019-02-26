@@ -157,14 +157,15 @@ class SSDLoss_proj:
             pred = 0
             gt = 0
             for i in range(bsz):
-                filterer = tf.where(tf.not_equal(y_true_1[i,:,-1],99))
+                filterer = tf.where(tf.not_equal(y_true_1[i,:,-4],99))
                 y_true_new = tf.gather_nd(y_true_1[i,:,:],filterer)
                 y_true_new = tf.expand_dims(y_true_new, 0)
-                iou_out = tf.py_func(iou, [y_true_new[i,:,-16:-12],tf.convert_to_tensor(y_true_1[i,:,-16:-12])], tf.float64, name="iou_out")
+                
+                iou_out = tf.py_func(iou, [y_pred_1[i,:,-16:-12],tf.convert_to_tensor(y_true_new[i,:,-16:-12])], tf.float64, name="iou_out")
                 bipartite_matches = tf.py_func(match_bipartite_greedy, [iou_out], tf.int64, name="bipartite_matches")
                 out = tf.gather(y_pred_2[i,:,:], [bipartite_matches], axis=0, name="out")
                 
-                filterer_2 = tf.where(tf.not_equal(y_true_2[i,:,-1],99))
+                filterer_2 = tf.where(tf.not_equal(y_true_2[i,:,-4],99))
                 y_true_2_new = tf.gather_nd(y_true_2[i,:,:],filterer_2)
                 y_true_2_new = tf.expand_dims(y_true_2_new, 0)
 

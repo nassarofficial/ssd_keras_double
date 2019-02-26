@@ -106,7 +106,7 @@ class DecodeDetections(Layer):
         self.input_spec = [InputSpec(shape=input_shape)]
         super(DecodeDetections, self).build(input_shape)
 
-    def call(self, y_pred_total, mask=None):
+    def call(self, y_pred, mask=None):
         '''
         Returns:
             3D tensor of shape `(batch_size, top_k, 6)`. The second axis is zero-padded
@@ -114,166 +114,156 @@ class DecodeDetections(Layer):
             the coordinates for each predicted box in the format
             `[class_id, confidence, xmin, ymin, xmax, ymax]`.
         '''
-        def predder(y_pred):
-            #####################################################################################
-            # 1. Convert the box coordinates from predicted anchor box offsets to predicted
-            #    absolute coordinates
-            #####################################################################################
-            # Convert anchor box offsets to image offsets.
-            y_pred = y_pred[:,:,:14]
-            cx = y_pred[...,-12] * y_pred[...,-4] * y_pred[...,-6] + y_pred[...,-8] # cx = cx_pred * cx_variance * w_anchor + cx_anchor
-            cy = y_pred[...,-11] * y_pred[...,-3] * y_pred[...,-5] + y_pred[...,-7] # cy = cy_pred * cy_variance * h_anchor + cy_anchor
-            w = tf.exp(y_pred[...,-10] * y_pred[...,-2]) * y_pred[...,-6] # w = exp(w_pred * variance_w) * w_anchor
-            h = tf.exp(y_pred[...,-9] * y_pred[...,-1]) * y_pred[...,-5] # h = exp(h_pred * variance_h) * h_anchor
 
-            # Convert 'centroids' to 'corners'.
-            xmin = cx - 0.5 * w
-            ymin = cy - 0.5 * h
-            xmax = cx + 0.5 * w
-            ymax = cy + 0.5 * h
+        #####################################################################################
+        # 1. Convert the box coordinates from predicted anchor box offsets to predicted
+        #    absolute coordinates
+        #####################################################################################
+        y_pred = y_pred[:,:,:14]
+        print("y_pred: ",y_pred)
+        # Convert anchor box offsets to image offsets.
+        cx = y_pred[...,-12] * y_pred[...,-4] * y_pred[...,-6] + y_pred[...,-8] # cx = cx_pred * cx_variance * w_anchor + cx_anchor
+        cy = y_pred[...,-11] * y_pred[...,-3] * y_pred[...,-5] + y_pred[...,-7] # cy = cy_pred * cy_variance * h_anchor + cy_anchor
+        w = tf.exp(y_pred[...,-10] * y_pred[...,-2]) * y_pred[...,-6] # w = exp(w_pred * variance_w) * w_anchor
+        h = tf.exp(y_pred[...,-9] * y_pred[...,-1]) * y_pred[...,-5] # h = exp(h_pred * variance_h) * h_anchor
 
-            # If the model predicts box coordinates relative to the image dimensions and they are supposed
-            # to be converted back to absolute coordinates, do that.
-            def normalized_coords():
-                xmin1 = tf.expand_dims(xmin * self.tf_img_width, axis=-1)
-                ymin1 = tf.expand_dims(ymin * self.tf_img_height, axis=-1)
-                xmax1 = tf.expand_dims(xmax * self.tf_img_width, axis=-1)
-                ymax1 = tf.expand_dims(ymax * self.tf_img_height, axis=-1)
-                return xmin1, ymin1, xmax1, ymax1
-            def non_normalized_coords():
-                return tf.expand_dims(xmin, axis=-1), tf.expand_dims(ymin, axis=-1), tf.expand_dims(xmax, axis=-1), tf.expand_dims(ymax, axis=-1)
+        # Convert 'centroids' to 'corners'.
+        xmin = cx - 0.5 * w
+        ymin = cy - 0.5 * h
+        xmax = cx + 0.5 * w
+        ymax = cy + 0.5 * h
 
-            xmin, ymin, xmax, ymax = tf.cond(self.tf_normalize_coords, normalized_coords, non_normalized_coords)
+        # If the model predicts box coordinates relative to the image dimensions and they are supposed
+        # to be converted back to absolute coordinates, do that.
+        def normalized_coords():
+            xmin1 = tf.expand_dims(xmin * self.tf_img_width, axis=-1)
+            ymin1 = tf.expand_dims(ymin * self.tf_img_height, axis=-1)
+            xmax1 = tf.expand_dims(xmax * self.tf_img_width, axis=-1)
+            ymax1 = tf.expand_dims(ymax * self.tf_img_height, axis=-1)
+            return xmin1, ymin1, xmax1, ymax1
+        def non_normalized_coords():
+            return tf.expand_dims(xmin, axis=-1), tf.expand_dims(ymin, axis=-1), tf.expand_dims(xmax, axis=-1), tf.expand_dims(ymax, axis=-1)
 
-            # Concatenate the one-hot class confidences and the converted box coordinates to form the decoded predictions tensor.
-            y_pred = tf.concat(values=[y_pred[...,:-12], xmin, ymin, xmax, ymax], axis=-1)
+        xmin, ymin, xmax, ymax = tf.cond(self.tf_normalize_coords, normalized_coords, non_normalized_coords)
 
-            #####################################################################################
-            # 2. Perform confidence thresholding, per-class non-maximum suppression, and
-            #    top-k filtering.
-            #####################################################################################
+        # Concatenate the one-hot class confidences and the converted box coordinates to form the decoded predictions tensor.
+        y_pred = tf.concat(values=[y_pred[...,:-12], xmin, ymin, xmax, ymax], axis=-1)
 
-            batch_size = tf.shape(y_pred)[0] # Output dtype: tf.int32
-            n_boxes = tf.shape(y_pred)[1]
-            n_classes = y_pred.shape[2] - 4
-            class_indices = tf.range(1, n_classes)
+        #####################################################################################
+        # 2. Perform confidence thresholding, per-class non-maximum suppression, and
+        #    top-k filtering.
+        #####################################################################################
 
-            # Create a function that filters the predictions for the given batch item. Specifically, it performs:
-            # - confidence thresholding
-            # - non-maximum suppression (NMS)
-            # - top-k filtering
-            def filter_predictions(batch_item):
+        batch_size = tf.shape(y_pred)[0] # Output dtype: tf.int32
+        n_boxes = tf.shape(y_pred)[1]
+        n_classes = y_pred.shape[2] - 4
+        class_indices = tf.range(1, n_classes)
 
-                # Create a function that filters the predictions for one single class.
-                def filter_single_class(index):
+        # Create a function that filters the predictions for the given batch item. Specifically, it performs:
+        # - confidence thresholding
+        # - non-maximum suppression (NMS)
+        # - top-k filtering
+        def filter_predictions(batch_item):
 
-                    # From a tensor of shape (n_boxes, n_classes + 4 coordinates) extract
-                    # a tensor of shape (n_boxes, 1 + 4 coordinates) that contains the
-                    # confidnece values for just one class, determined by `index`.
-                    confidences = tf.expand_dims(batch_item[..., index], axis=-1)
-                    class_id = tf.fill(dims=tf.shape(confidences), value=tf.to_float(index))
-                    box_coordinates = batch_item[...,-4:]
+            # Create a function that filters the predictions for one single class.
+            def filter_single_class(index):
 
-                    single_class = tf.concat([class_id, confidences, box_coordinates], axis=-1)
+                # From a tensor of shape (n_boxes, n_classes + 4 coordinates) extract
+                # a tensor of shape (n_boxes, 1 + 4 coordinates) that contains the
+                # confidnece values for just one class, determined by `index`.
+                confidences = tf.expand_dims(batch_item[..., index], axis=-1)
+                class_id = tf.fill(dims=tf.shape(confidences), value=tf.to_float(index))
+                box_coordinates = batch_item[...,-4:]
 
-                    # Apply confidence thresholding with respect to the class defined by `index`.
-                    threshold_met = single_class[:,1] > self.tf_confidence_thresh
-                    single_class = tf.boolean_mask(tensor=single_class,
-                                                   mask=threshold_met)
+                single_class = tf.concat([class_id, confidences, box_coordinates], axis=-1)
 
-                    # If any boxes made the threshold, perform NMS.
-                    def perform_nms():
-                        scores = single_class[...,1]
+                # Apply confidence thresholding with respect to the class defined by `index`.
+                threshold_met = single_class[:,1] > self.tf_confidence_thresh
+                single_class = tf.boolean_mask(tensor=single_class,
+                                               mask=threshold_met)
 
-                        # `tf.image.non_max_suppression()` needs the box coordinates in the format `(ymin, xmin, ymax, xmax)`.
-                        xmin = tf.expand_dims(single_class[...,-4], axis=-1)
-                        ymin = tf.expand_dims(single_class[...,-3], axis=-1)
-                        xmax = tf.expand_dims(single_class[...,-2], axis=-1)
-                        ymax = tf.expand_dims(single_class[...,-1], axis=-1)
-                        boxes = tf.concat(values=[ymin, xmin, ymax, xmax], axis=-1)
+                # If any boxes made the threshold, perform NMS.
+                def perform_nms():
+                    scores = single_class[...,1]
 
-                        maxima_indices = tf.image.non_max_suppression(boxes=boxes,
-                                                                      scores=scores,
-                                                                      max_output_size=self.tf_nms_max_output_size,
-                                                                      iou_threshold=self.iou_threshold,
-                                                                      name='non_maximum_suppresion')
-                        maxima = tf.gather(params=single_class,
-                                           indices=maxima_indices,
-                                           axis=0)
-                        return maxima
+                    # `tf.image.non_max_suppression()` needs the box coordinates in the format `(ymin, xmin, ymax, xmax)`.
+                    xmin = tf.expand_dims(single_class[...,-4], axis=-1)
+                    ymin = tf.expand_dims(single_class[...,-3], axis=-1)
+                    xmax = tf.expand_dims(single_class[...,-2], axis=-1)
+                    ymax = tf.expand_dims(single_class[...,-1], axis=-1)
+                    boxes = tf.concat(values=[ymin, xmin, ymax, xmax], axis=-1)
 
-                    def no_confident_predictions():
-                        return tf.constant(value=0.0, shape=(1,6))
+                    maxima_indices = tf.image.non_max_suppression(boxes=boxes,
+                                                                  scores=scores,
+                                                                  max_output_size=self.tf_nms_max_output_size,
+                                                                  iou_threshold=self.iou_threshold,
+                                                                  name='non_maximum_suppresion')
+                    maxima = tf.gather(params=single_class,
+                                       indices=maxima_indices,
+                                       axis=0)
+                    return maxima
 
-                    single_class_nms = tf.cond(tf.equal(tf.size(single_class), 0), no_confident_predictions, perform_nms)
+                def no_confident_predictions():
+                    return tf.constant(value=0.0, shape=(1,6))
 
-                    # Make sure `single_class` is exactly `self.nms_max_output_size` elements long.
-                    padded_single_class = tf.pad(tensor=single_class_nms,
-                                                 paddings=[[0, self.tf_nms_max_output_size - tf.shape(single_class_nms)[0]], [0, 0]],
-                                                 mode='CONSTANT',
-                                                 constant_values=0.0)
+                single_class_nms = tf.cond(tf.equal(tf.size(single_class), 0), no_confident_predictions, perform_nms)
 
-                    return padded_single_class
+                # Make sure `single_class` is exactly `self.nms_max_output_size` elements long.
+                padded_single_class = tf.pad(tensor=single_class_nms,
+                                             paddings=[[0, self.tf_nms_max_output_size - tf.shape(single_class_nms)[0]], [0, 0]],
+                                             mode='CONSTANT',
+                                             constant_values=0.0)
 
-                # Iterate `filter_single_class()` over all class indices.
-                filtered_single_classes = tf.map_fn(fn=lambda i: filter_single_class(i),
-                                                    elems=tf.range(1,n_classes),
-                                                    dtype=tf.float32,
-                                                    parallel_iterations=128,
-                                                    back_prop=False,
-                                                    swap_memory=False,
-                                                    infer_shape=True,
-                                                    name='loop_over_classes')
+                return padded_single_class
 
-                # Concatenate the filtered results for all individual classes to one tensor.
-                filtered_predictions = tf.reshape(tensor=filtered_single_classes, shape=(-1,6))
+            # Iterate `filter_single_class()` over all class indices.
+            filtered_single_classes = tf.map_fn(fn=lambda i: filter_single_class(i),
+                                                elems=tf.range(1,n_classes),
+                                                dtype=tf.float32,
+                                                parallel_iterations=128,
+                                                back_prop=False,
+                                                swap_memory=False,
+                                                infer_shape=True,
+                                                name='loop_over_classes')
 
-                # Perform top-k filtering for this batch item or pad it in case there are
-                # fewer than `self.top_k` boxes left at this point. Either way, produce a
-                # tensor of length `self.top_k`. By the time we return the final results tensor
-                # for the whole batch, all batch items must have the same number of predicted
-                # boxes so that the tensor dimensions are homogenous. If fewer than `self.top_k`
-                # predictions are left after the filtering process above, we pad the missing
-                # predictions with zeros as dummy entries.
-                def top_k():
-                    return tf.gather(params=filtered_predictions,
-                                     indices=tf.nn.top_k(filtered_predictions[:, 1], k=self.tf_top_k, sorted=True).indices,
-                                     axis=0)
-                def pad_and_top_k():
-                    padded_predictions = tf.pad(tensor=filtered_predictions,
-                                                paddings=[[0, self.tf_top_k - tf.shape(filtered_predictions)[0]], [0, 0]],
-                                                mode='CONSTANT',
-                                                constant_values=0.0)
-                    return tf.gather(params=padded_predictions,
-                                     indices=tf.nn.top_k(padded_predictions[:, 1], k=self.tf_top_k, sorted=True).indices,
-                                     axis=0)
+            # Concatenate the filtered results for all individual classes to one tensor.
+            filtered_predictions = tf.reshape(tensor=filtered_single_classes, shape=(-1,6))
 
-                top_k_boxes = tf.cond(tf.greater_equal(tf.shape(filtered_predictions)[0], self.tf_top_k), top_k, pad_and_top_k)
+            # Perform top-k filtering for this batch item or pad it in case there are
+            # fewer than `self.top_k` boxes left at this point. Either way, produce a
+            # tensor of length `self.top_k`. By the time we return the final results tensor
+            # for the whole batch, all batch items must have the same number of predicted
+            # boxes so that the tensor dimensions are homogenous. If fewer than `self.top_k`
+            # predictions are left after the filtering process above, we pad the missing
+            # predictions with zeros as dummy entries.
+            def top_k():
+                return tf.gather(params=filtered_predictions,
+                                 indices=tf.nn.top_k(filtered_predictions[:, 1], k=self.tf_top_k, sorted=True).indices,
+                                 axis=0)
+            def pad_and_top_k():
+                padded_predictions = tf.pad(tensor=filtered_predictions,
+                                            paddings=[[0, self.tf_top_k - tf.shape(filtered_predictions)[0]], [0, 0]],
+                                            mode='CONSTANT',
+                                            constant_values=0.0)
+                return tf.gather(params=padded_predictions,
+                                 indices=tf.nn.top_k(padded_predictions[:, 1], k=self.tf_top_k, sorted=True).indices,
+                                 axis=0)
 
-                return top_k_boxes
+            top_k_boxes = tf.cond(tf.greater_equal(tf.shape(filtered_predictions)[0], self.tf_top_k), top_k, pad_and_top_k)
 
-            # Iterate `filter_predictions()` over all batch items.
-            output_tensor = tf.map_fn(fn=lambda x: filter_predictions(x),
-                                      elems=y_pred,
-                                      dtype=None,
-                                      parallel_iterations=128,
-                                      back_prop=False,
-                                      swap_memory=False,
-                                      infer_shape=True,
-                                      name='loop_over_batch')
-            return output_tensor
+            return top_k_boxes
 
-        y_pred_1 = y_pred_total[:,:,:18]
-        y_pred_2 = y_pred_total[:,:,18:36]
-        y_pred_1_proj = y_pred_total[:,:,36:72]
-        y_pred_2_proj = y_pred_total[:,:,72:108]
+        # Iterate `filter_predictions()` over all batch items.
+        output_tensor = tf.map_fn(fn=lambda x: filter_predictions(x),
+                                  elems=y_pred,
+                                  dtype=None,
+                                  parallel_iterations=128,
+                                  back_prop=False,
+                                  swap_memory=False,
+                                  infer_shape=True,
+                                  name='loop_over_batch')
 
-        out_p1 = predder(y_pred_1)
-        out_p2 = predder(y_pred_2)
-        out_p1_p = predder(y_pred_1_proj)
-        out_p2_p = predder(y_pred_2_proj)
-        print(out_p1)
-        return out_p1
+        return output_tensor
 
     def compute_output_shape(self, input_shape):
         batch_size, n_boxes, last_axis = input_shape

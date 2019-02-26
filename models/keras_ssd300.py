@@ -594,10 +594,10 @@ def ssd_300(image_size,
         # mbox_conf_softmax = 2, mbox_loc = 4, mbox_priorbox = 8, mbox_conf_softmax= 2, mbox_proj= 4, mbox_priorbox = 8
         # predictions = Concatenate(axis=2, name='predictions'+'_'+suf)([mbox_conf_softmax, mbox_loc, mbox_priorbox, mbox_proj])
 
+        # empty_2 = Lambda(zeroer)(mbox_conf_softmax)
         empty_4 = Lambda(zeroer)(mbox_loc)
-        empty_2 = Lambda(zeroer)(mbox_conf_softmax)
 
-        predictions = Concatenate(axis=2, name='predictions'+suf)([mbox_conf_softmax, mbox_loc, mbox_priorbox,empty_4,empty_2])
+        predictions = Concatenate(axis=2, name='predictions'+suf)([mbox_conf_softmax, mbox_loc, mbox_priorbox,empty_4])
         
         # mbox_proj = Dense(32, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
         # mbox_proj = Dense(16, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
@@ -605,7 +605,7 @@ def ssd_300(image_size,
         # mbox_proj = Dense(4, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
 
 
-        predictions_proj = Concatenate(axis=2, name='predictions'+suf+'_proj')([predictions, mbox_conf_softmax, mbox_proj, mbox_priorbox,empty_4,empty_2])
+        predictions_proj = Concatenate(axis=2, name='predictions'+suf+'_proj')([predictions, mbox_conf_softmax, mbox_proj, mbox_priorbox,empty_4])
 
 
         # model = Model(input=[x,geo_1,geo_2],output=predictions)

@@ -131,6 +131,7 @@ class Resize_Modified:
         self.out_width = width
         self.interpolation_mode = interpolation_mode
         self.box_filter = box_filter
+        self.box_filter1 = box_filter
         self.labels_format = labels_format
 
     def __call__(self, image, labels, image1, labels1, return_inverter=False):
@@ -185,17 +186,19 @@ class Resize_Modified:
 
             if not (self.box_filter is None):
                 self.box_filter.labels_format = self.labels_format
+                self.box_filter1.labels_format = self.labels_format
                 labels = self.box_filter(labels=labels,
                                          image_height=self.out_height,
                                          image_width=self.out_width)
                 
-                labels1 = self.box_filter(labels=labels1,
+                labels1 = self.box_filter1(labels=labels1,
                                          image_height=self.out_height,
                                          image_width=self.out_width)
 
             if return_inverter:
                 return image, labels, image1, labels1, inverter, inverter1
             else:
+                
                 return image, labels, image1, labels1
 
 

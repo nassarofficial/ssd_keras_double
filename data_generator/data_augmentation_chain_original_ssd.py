@@ -329,8 +329,6 @@ class SSDDataAugmentation_modified:
 
         self.sequence = [self.photometric_distortions,
                          self.expand,
-                         self.random_crop,
-                         self.random_flip,
                          self.resize]
 
     def __call__(self, image, labels, image1, labels1, return_inverter=False):
@@ -344,12 +342,19 @@ class SSDDataAugmentation_modified:
         for transform in self.sequence:
             if return_inverter and ('return_inverter' in inspect.signature(transform).parameters):
                 image, labels, inverter = transform(image, labels, return_inverter=True)
+                inverters.append(inverter)
+            else:
+                image, labels = transform(image, labels)
+        for transform in self.sequence:
+            if return_inverter and ('return_inverter' in inspect.signature(transform).parameters):
+                image, labels, inverter = transform(image, labels, return_inverter=True)
                 image1, labels1, inverter1 = transform(image1, labels1, return_inverter=True)
                 inverters.append(inverter)
                 inverters1.append(inverter1)
             else:
                 image, labels = transform(image, labels)
                 image1, labels1 = transform(image1, labels1)
+
 
         if return_inverter:
             return image, labels, image1, labels1, inverters[::-1], inverters1[::-1]

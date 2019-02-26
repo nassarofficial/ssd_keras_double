@@ -88,7 +88,7 @@ class DataGenerator:
                  labels=None,
                  image_ids=None,
                  eval_neutral=None,
-                 labels_output_format=('class_id', 'xmin', 'ymin', 'xmax', 'ymax', 'target_id','distance','pano_lat','pano_lng','yaw','lat','lng'),
+                 labels_output_format=('class_id', 'xmin', 'ymin', 'xmax', 'ymax', 'target_id','distance','lat','lng','yaw','pano_lat','pano_lng'),
                  verbose=True):
         '''
         Initializes the data generator. You can either load a dataset directly here in the constructor,
@@ -429,14 +429,15 @@ class DataGenerator:
                                      'target_id':target_id,
                                      'lat':lat_,
                                      'lng':lng_,
-                                     'yaw':yaw,
                                      'pano_lat':pano_lat,
-                                     'pano_lng':pano_lng
-                                    }                        
+                                     'pano_lng':pano_lng,
+                                     'yaw':yaw
+                                    }                                 
                         box = []
                         for item in self.labels_output_format:
                             box.append(item_dict[item])
                         boxes.append(box)
+
                         if difficult: eval_neutr.append(True)
                         else: eval_neutr.append(False)
 
@@ -454,7 +455,7 @@ class DataGenerator:
                     pano_lng = float(soup.panocoords.text.split(",")[1])
                     yaw = float(soup.yaw.text)
                     lat_ = float(soup.location.text.split(",")[0])
-                    lng_ = float(soup.location.text.split(",")[1])                                     
+                    lng_ = float(soup.location.text.split(",")[1])
                     distance = haversine_distance(pano_lat,pano_lng,lat_,lng_)
 
 
@@ -498,10 +499,10 @@ class DataGenerator:
                                      'target_id':target_id,
                                      'lat':lat_,
                                      'lng':lng_,
-                                     'yaw':yaw,
                                      'pano_lat':pano_lat,
-                                     'pano_lng':pano_lng
-                                    }                        
+                                     'pano_lng':pano_lng,
+                                     'yaw':yaw
+                                    }                                 
                         box = []
                         for item in self.labels_output_format:
                             box.append(item_dict[item])
@@ -914,7 +915,6 @@ class DataGenerator:
             if not (self.labels is None):
                 batch_y = deepcopy(self.labels[current:current+batch_size])
                 batch_w = deepcopy(self.labels1[current:current+batch_size])
-
             else:
                 batch_y = None
                 batch_w = None
@@ -958,6 +958,7 @@ class DataGenerator:
                     batch_y[i] = np.array(batch_y[i])
                     batch_w[i] = np.array(batch_w[i])
                     # If this image has no ground truth boxes, maybe we don't want to keep it in the batch.
+
                     if (batch_y[i].size == 0) and not keep_images_without_gt:
                         batch_items_to_remove.append(i)
                         batch_inverse_transforms.append([])
@@ -979,6 +980,9 @@ class DataGenerator:
                                 inverse_transforms1.append(inverse_transform1)
                             else:       
                                 batch_X[i], batch_y[i], batch_Z[i], batch_w[i] = transform(batch_X[i], batch_y[i], batch_Z[i], batch_w[i])
+                                # print("after")
+                                # print("batch_y: ", batch_y)
+                                # print("batch_w: ", batch_w)
 
                             if batch_X[i] is None: # In case the transform failed to produce an output image, which is possible for some random transforms.
                                 batch_items_to_remove.append(i)
@@ -1035,7 +1039,6 @@ class DataGenerator:
                             if (batch_w[i].size == 0) and not keep_images_without_gt:
                                 batch_items_to_remove.append(i)
 
-
             #########################################################################################
             # Remove any items we might not want to keep from the batch.
             #########################################################################################
@@ -1049,12 +1052,12 @@ class DataGenerator:
                     if batch_inverse_transforms: batch_inverse_transforms.pop(j)
                     if batch_inverse_transforms1: batch_inverse_transforms1.pop(j)
                     if not (self.labels is None): batch_y.pop(j)
+                    if not (self.labels1 is None): batch_w.pop(j)
                     if not (self.image_ids is None): batch_image_ids.pop(j)
                     if not (self.eval_neutral is None): batch_eval_neutral.pop(j)
                     if not (self.eval_neutral1 is None): batch_eval_neutral1.pop(j)
                     if 'original_images' in returns: batch_original_images.pop(j)
                     if 'original_labels' in returns and not (self.labels is None): batch_original_labels.pop(j)
-
             #########################################################################################
 
             # CAUTION: Converting `batch_X` into an array will result in an empty batch if the images have varying sizes
@@ -1083,17 +1086,17 @@ class DataGenerator:
                     # print("BATCH_W: ",batch_w)
                     batch_y_encoded, batch_matched_anchors = label_encoder(batch_y, diagnostics=True)
                     batch_y_encoded1, batch_matched_anchors1 = label_encoder(batch_w, diagnostics=True)
-
                 else:
 
                     batch_y_encoded_1 = label_encoder(batch_y, diagnostics=False)
                     batch_y_encoded_2 = label_encoder(batch_w, diagnostics=False)
 
-                    batch_matched_anchors = None
 
+                    batch_matched_anchors = None
             else:
                 batch_y_encoded = None
                 batch_matched_anchors = None
+            # print("out: ", batch_y_encoded_1[0,1,:])
 
             #########################################################################################
             # Compose the output.
@@ -1103,7 +1106,9 @@ class DataGenerator:
 
             # np.save('outputs/predder.npy', [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded_1,"predictions_2": batch_y_encoded_2,"predictions_1_proj": [batch_y_encoded_1,batch_y_encoded_2_proj],"predictions_2_proj": [batch_y_encoded_2,batch_y_encoded_1_proj]}])
             # yield [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded_1,"predictions_2": batch_y_encoded_2,"predictions_1_proj": [batch_y_encoded_1,batch_y_encoded_2_proj],"predictions_2_proj": [batch_y_encoded_2,batch_y_encoded_1_proj]}]
-
+            # print("tttt: ", batch_y_encoded_1,batch_y_encoded_2)
+            # print("#######: ", batch_y_encoded_1.shape)
+            # print("batch_y_encoded_1: ", batch_y_encoded_1)
             np.save('outputs/predder.npy', [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded_1,"predictions_2": batch_y_encoded_2,"predictions_1_proj": np.concatenate([batch_y_encoded_1,batch_y_encoded_2],2),"predictions_2_proj": np.concatenate([batch_y_encoded_2,batch_y_encoded_1],2)}])
             yield [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded_1,"predictions_2": batch_y_encoded_2,"predictions_1_proj": np.concatenate([batch_y_encoded_1,batch_y_encoded_2],2),"predictions_2_proj": np.concatenate([batch_y_encoded_2,batch_y_encoded_1],2)}]
 
