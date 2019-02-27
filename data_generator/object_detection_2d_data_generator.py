@@ -375,13 +375,14 @@ class DataGenerator:
                     with open(os.path.join(annotations_dir, image_id[1] + '.xml')) as f:
                         soup1 = BeautifulSoup(f, 'xml')
 
+                    print("image_id[0]: ",image_id[0])
+
                     IDs = []
                     for tar in soup.find_all('object'):
                         if tar.find('ID'):
                             IDs.append([tar.find('ID').text,tar.find('location').text])
 
                     ##############################################################################
-                    print("image_id[0]: ",image_id[0])
                     folder = "Pasadena" # In case we want to return the folder in addition to the image file name. Relevant for determining which dataset an image belongs to.
                     #filename = soup.filename.text
 
