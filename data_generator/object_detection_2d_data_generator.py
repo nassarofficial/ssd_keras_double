@@ -376,7 +376,6 @@ class DataGenerator:
                     with open(os.path.join(annotations_dir, image_id[1] + '.xml')) as f:
                         soup1 = BeautifulSoup(f, 'xml')
 
-                    print("image_id[0]: ",image_id[0])
 
                     IDs = []
 
@@ -424,6 +423,8 @@ class DataGenerator:
                         try:
                             if int(obj.find('ID', recursive=False).text) == int(IDs[0]):
                                 target_id = int(IDs[0])
+                            else:
+                                target_id = int(99)
                         except:
                             target_id = int(99)
 
@@ -491,6 +492,9 @@ class DataGenerator:
                         try:
                             if int(obj.find('ID', recursive=False).text) == int(IDs[0]):
                                 target_id = int(IDs[0])
+                            else:
+                                target_id = int(99)
+
                         except:
                             target_id = int(99)
 
