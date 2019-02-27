@@ -381,10 +381,9 @@ class DataGenerator:
 
                     for tar in soup.find_all('object'):
                         print(tar)
-                        print("asdsssssssssssss: ",tar.find('ID', recursive=False).text)
+                        print("asdsssssssssssss: ",tar.ID.text)
                         if tar.find('ID'):
-                            print("asdsssssssssssss: ",tar.find('ID'))
-                            IDs.append([tar.find('ID').text,tar.find('location').text])
+                            IDs.append([tar.ID.text,tar.location.text])
 
                     IDs = random.choice(IDs)
                     ##############################################################################
