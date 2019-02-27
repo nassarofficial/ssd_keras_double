@@ -34,6 +34,7 @@ from data_generator.object_detection_2d_misc_utils import apply_inverse_transfor
 from bounding_box_utils.bounding_box_utils import iou, convert_coordinates
 from ssd_encoder_decoder.matching_utils import match_bipartite_greedy, match_multi
 import random
+
 np.set_printoptions(precision=20)
 import tensorflow as tf
 np.random.seed(1337)
@@ -192,12 +193,16 @@ val_dataset_1 = DataGenerator(load_images_into_memory=False, hdf5_dataset_path=N
 VOC_2007_images_dir      = '../datasets/Images/'
 
 # The directories that contain the annotations.
-VOC_2007_annotations_dir      = '../datasets/VOC/Pasadena/Annotations/'
+VOC_2007_annotations_dir      = '../datasets/VOC/Pasadena/Annotations_Multi/'
 
 # The pat[Accuracy]hs to the image sets.
-VOC_2007_trainval_image_set_filename = '../datasets/VOC/Pasadena/ImageSets/Main/siamese/trainval_sia.txt'
-VOC_2007_val_image_set_filename      = '../datasets/VOC/Pasadena/ImageSets/Main/siamese/val_sia.txt'
-VOC_2007_test_image_set_filename     = '../datasets/VOC/Pasadena/ImageSets/Main/siamese/test_sia.txt'
+#VOC_2007_trainval_image_set_filename = '../datasets/VOC/Pasadena/ImageSets/Main/siamese/trainval_sia.txt'
+#VOC_2007_val_image_set_filename      = '../datasets/VOC/Pasadena/ImageSets/Main/siamese/val_sia.txt'
+#VOC_2007_test_image_set_filename     = '../datasets/VOC/Pasadena/ImageSets/Main/siamese/test_sia.txt'
+
+VOC_2007_trainval_image_set_filename = '../datasets/VOC/Pasadena/ImageSets/Main/reid/train.txt'
+VOC_2007_val_image_set_filename      = '../datasets/VOC/Pasadena/ImageSets/Main/reid/val.txt'
+VOC_2007_test_image_set_filename     = '../datasets/VOC/Pasadena/ImageSets/Main/reid/test.txt'
 
 # VOC_2007_trainval_image_set_filename = '../datasets/VOC/Pasadena/ImageSets/Main/siamese/trainval_sia_same.txt'
 # VOC_2007_val_image_set_filename      = '../datasets/VOC/Pasadena/ImageSets/Main/siamese/val_sia_same.txt'
@@ -278,7 +283,7 @@ train_generator = train_dataset.generate(batch_size=batch_size,
                                          returns={'processed_images',
                                                   'encoded_labels'},
                                          keep_images_without_gt=False)
-,
+
 val_generator = val_dataset.generate(batch_size=batch_size,
                                      shuffle=False,
                                      transformations=[convert_to_3_channels,
