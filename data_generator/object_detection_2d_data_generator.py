@@ -372,6 +372,16 @@ class DataGenerator:
                     with open(os.path.join(annotations_dir, image_id[0] + '.xml')) as f:
                         soup = BeautifulSoup(f, 'xml')
 
+                    with open(os.path.join(annotations_dir, image_id[1] + '.xml')) as f:
+                        soup1 = BeautifulSoup(f, 'xml')
+
+                    IDs = []
+                    for tar in soup.find_all('object'):
+                        if tar.find('ID'):
+                            IDs.append([tar.find('ID').text,tar.find('location').text])
+
+                    ##############################################################################
+
                     folder = "Pasadena" # In case we want to return the folder in addition to the image file name. Relevant for determining which dataset an image belongs to.
                     #filename = soup.filename.text
 
@@ -386,8 +396,8 @@ class DataGenerator:
                     pano_lat = float(soup.panocoords.text.split(",")[0])
                     pano_lng = float(soup.panocoords.text.split(",")[1])
                     yaw = float(soup.yaw.text)
-                    lat_ = float(soup.location.text.split(",")[0])
-                    lng_ = float(soup.location.text.split(",")[1])                                     
+                    lat_ = float(IDs[1].split(",")[0])
+                    lng_ = float(IDs[1].split(",")[1])                                     
                     distance = haversine_distance(pano_lat,pano_lng,lat_,lng_)
 
                     # Parse the data for each object.
@@ -408,8 +418,8 @@ class DataGenerator:
                         xmax = int(bndbox.xmax.text)
                         ymax = int(bndbox.ymax.text)
                         try:
-                            target_id = int(obj.find('ID', recursive=False).text)
-                            #lat1, lon1, lat2, lon2
+                            if int(obj.find('ID', recursive=False).text) == int(IDs[0]):
+                                target_id = int(IDs[0])
                         except:
                             target_id = int(99)
 
@@ -442,25 +452,23 @@ class DataGenerator:
                         else: eval_neutr.append(False)
 
                     ###################################################################################
-                    with open(os.path.join(annotations_dir, image_id[1] + '.xml')) as f:
-                        soup = BeautifulSoup(f, 'xml')
 
                     folder = "Pasadena" # In case we want to return the folder in addition to the image file name. Relevant for determining which dataset an image belongs to.
                     #filename = soup.filename.text
 
                     boxes1 = [] # We'll store all boxes for this image here.
                     eval_neutr1 = [] # We'll store whether a box is annotated as "difficult" here.
-                    objects = soup.find_all('object') # Get a list of all objects in this image.
-                    pano_lat = float(soup.panocoords.text.split(",")[0])
-                    pano_lng = float(soup.panocoords.text.split(",")[1])
-                    yaw = float(soup.yaw.text)
-                    lat_ = float(soup.location.text.split(",")[0])
-                    lng_ = float(soup.location.text.split(",")[1])
+                    objects1 = soup1.find_all('object') # Get a list of all objects in this image.
+                    pano_lat = float(soup1.panocoords.text.split(",")[0])
+                    pano_lng = float(soup1.panocoords.text.split(",")[1])
+                    yaw = float(soup1.yaw.text)
+                    lat_ = float(IDs[1].split(",")[0])
+                    lng_ = float(IDs[1].split(",")[1])                                     
                     distance = haversine_distance(pano_lat,pano_lng,lat_,lng_)
 
 
                     # Parse the data for each object.
-                    for obj in objects:
+                    for obj in objects1:
                         class_name = obj.find('name', recursive=False).text
                         class_id = self.classes.index(class_name)
                         # Check whether this class is supposed to be included in the dataset.
@@ -477,9 +485,8 @@ class DataGenerator:
                         xmax = int(bndbox.xmax.text)
                         ymax = int(bndbox.ymax.text)
                         try:
-                            target_id = int(obj.find('ID', recursive=False).text)
-                            #lat1, lon1, lat2, lon2
-
+                            if int(obj.find('ID', recursive=False).text) == int(IDs[0]):
+                                target_id = int(IDs[0])
                         except:
                             target_id = int(99)
 
@@ -1090,7 +1097,11 @@ class DataGenerator:
 
                     batch_y_encoded_1 = label_encoder(batch_y, diagnostics=False)
                     batch_y_encoded_2 = label_encoder(batch_w, diagnostics=False)
-
+                    try:
+                        np.where(batch_y_encoded_1[:,:,-4]!=99)
+                        np.where(batch_y_encoded_2[:,:,-4]!=99)
+                    except:
+                        break
 
                     batch_matched_anchors = None
             else:
