@@ -382,6 +382,7 @@ class DataGenerator:
                         if tar.find('ID'):
                             IDs.append([tar.find('ID').text,tar.find('location').text])
 
+                    IDs = random.choice(IDs)
                     ##############################################################################
                     folder = "Pasadena" # In case we want to return the folder in addition to the image file name. Relevant for determining which dataset an image belongs to.
                     #filename = soup.filename.text
