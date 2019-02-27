@@ -30,6 +30,7 @@ import os
 import sys
 from tqdm import tqdm, trange
 import math
+import random
 try:
     import h5py
 except ImportError:
@@ -381,8 +382,6 @@ class DataGenerator:
 
                     for tar in soup.find_all('object'):
                         if tar.find('ID'):
-                            print("asdsssssssssssss: ",tar.ID.text)
-                            print(tar)
                             IDs.append([tar.ID.text,tar.location.text])
 
                     IDs = random.choice(IDs)
