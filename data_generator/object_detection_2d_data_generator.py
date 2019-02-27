@@ -381,7 +381,7 @@ class DataGenerator:
                             IDs.append([tar.find('ID').text,tar.find('location').text])
 
                     ##############################################################################
-
+                    print("image_id[0]: ",image_id[0])
                     folder = "Pasadena" # In case we want to return the folder in addition to the image file name. Relevant for determining which dataset an image belongs to.
                     #filename = soup.filename.text
 
