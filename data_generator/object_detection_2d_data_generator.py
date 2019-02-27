@@ -378,7 +378,9 @@ class DataGenerator:
                     print("image_id[0]: ",image_id[0])
 
                     IDs = []
+
                     for tar in soup.find_all('object'):
+                        print(tar)
                         if tar.find('ID'):
                             IDs.append([tar.find('ID').text,tar.find('location').text])
 
