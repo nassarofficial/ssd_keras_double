@@ -604,14 +604,20 @@ class Evaluator:
         # Convert the ground truth to a more efficient format for what we need
         # to do, which is access ground truth by image ID repeatedly.
         ground_truth = {}
+        ground_truth1 = {}
         eval_neutral_available = not (self.data_generator.eval_neutral is None) # Whether or not we have annotations to decide whether ground truth boxes should be neutral or not.
         for i in range(len(self.data_generator.image_ids)):
-            image_id = str(self.data_generator.image_ids[i][1])
+            image_id = str(self.data_generator.image_ids[i][0])
+            image_id1 = str(self.data_generator.image_ids[i][0])
             labels = self.data_generator.labels[i]
+            labels1 = self.data_generator.labels[i]
+
             if ignore_neutral_boxes and eval_neutral_available:
                 ground_truth[image_id] = (np.asarray(labels), np.asarray(self.data_generator.eval_neutral[i]))
+                ground_truth1[image_id1] = (np.asarray(labels1), np.asarray(self.data_generator.eval_neutral[i]))
             else:
                 ground_truth[image_id] = np.asarray(labels)
+                ground_truth1[image_id1] = np.asarray(labels1)
 
         true_positives = [[]] # The false positives for each class, sorted by descending confidence.
         false_positives = [[]] # The true positives for each class, sorted by descending confidence.
@@ -661,7 +667,7 @@ class Evaluator:
 
             # Keep track of which ground truth boxes were already matched to a detection.
             gt_matched = {}
-            print("PREDICTIONS $$$$$$$$$$$$$$44 :", predictions.shape)
+            gt_matched1 = {}
             # Iterate over all predictions.
             for i in tr:
 
@@ -681,12 +687,15 @@ class Evaluator:
                     gt = ground_truth[image_id]
                 gt = np.asarray(gt)
                 indz = np.where(gt[:,5]!=99)
-
                 gt = gt[indz]
-                # print(gt)
 
-                # print("## gt: ", gt.shape)
+                gt1 = np.asarray(gt1)
+                indz1 = np.where(gt1[:,5]!=99)
+                gt1 = gt1[indz1]
 
+                ########### pick random gt
+                ########### convert random pred to the other dimension
+                
                 class_mask = gt[:,class_id_gt] == class_id
                 gt = gt[class_mask]
                 # if ignore_neutral_boxes and eval_neutral_available:
@@ -699,7 +708,7 @@ class Evaluator:
                     continue
 
                 # Compute the IoU of this prediction with all ground truth boxes of the same class.
-                overlaps = iou(boxes1=gt[:,[xmin_gt, ymin_gt, xmax_gt, ymax_gt]],
+                overlaps = iou(boxes1=gt2[:,[xmin_gt, ymin_gt, xmax_gt, ymax_gt]],
                                boxes2=pred_box,
                                coords='corners',
                                mode='element-wise',
@@ -711,6 +720,7 @@ class Evaluator:
                 gt_match_index = np.argmax(overlaps)
 
                 gt_match_overlap = overlaps[gt_match_index]
+
                 if gt_match_overlap < matching_iou_threshold:
                     # False positive, IoU threshold violated:
                     # Those predictions whose matched overlap is below the threshold become
@@ -727,13 +737,13 @@ class Evaluator:
                             # different prediction already, we have a true positive.
                             true_pos[i] = 1
                             gt_matched[image_id] = np.zeros(shape=(gt.shape[0]), dtype=np.bool)
-                            gt_matched[image_id][gt_match_index] = gt[gt_match_index]
-                        elif not gt_matched[image_id]:
+                            gt_matched[image_id][gt_match_index] = True
+                        elif not gt_matched[image_id][gt_match_index]:
                             # True positive:
                             # If the matched ground truth box for this prediction hasn't been matched to a
                             # different prediction already, we have a true positive.
                             true_pos[i] = 1
-                            gt_matched[image_id] = gt[gt_match_index]
+                            gt_matched[image_id][gt_match_index] = True
                         else:
                             # False positive, duplicate detection:
                             # If the matched ground truth box for this prediction has already been matched
