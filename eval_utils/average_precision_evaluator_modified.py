@@ -378,8 +378,6 @@ class Evaluator:
             y_pred = self.model.predict([batch_X,batch_Z,geox,geoz])
             # If the model was created in 'training' mode, the raw predictions need to
             # be decoded and filtered, otherwise that's already taken care of.
-            print("Test: ", y_pred.shape)
-            print("y_pred: ", y_pred)
 
             if self.model_mode == 'training':
                 # Decode.
@@ -404,7 +402,7 @@ class Evaluator:
             # Iterate over all batch items.
             for k, batch_item in enumerate(y_pred):
 
-                image_id = batch_image_ids[k][0]
+                image_id = batch_image_ids[k][1]
 
                 for box in batch_item:
                     class_id = int(box[class_id_pred])
@@ -607,7 +605,7 @@ class Evaluator:
         ground_truth = {}
         eval_neutral_available = not (self.data_generator.eval_neutral is None) # Whether or not we have annotations to decide whether ground truth boxes should be neutral or not.
         for i in range(len(self.data_generator.image_ids)):
-            image_id = str(self.data_generator.image_ids[i][0])
+            image_id = str(self.data_generator.image_ids[i][1])
             labels = self.data_generator.labels[i]
             if ignore_neutral_boxes and eval_neutral_available:
                 ground_truth[image_id] = (np.asarray(labels), np.asarray(self.data_generator.eval_neutral[i]))
