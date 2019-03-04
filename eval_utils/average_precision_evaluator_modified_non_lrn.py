@@ -23,7 +23,7 @@ from math import ceil
 from tqdm import trange
 import sys
 import warnings
-
+import math
 from data_generator.object_detection_2d_data_generator import DataGenerator
 from data_generator.object_detection_2d_geometric_ops import Resize_Modified
 from data_generator.object_detection_2d_patch_sampling_ops import RandomPadFixedAR
@@ -304,6 +304,43 @@ class Evaluator:
         Returns:
             None by default. Optionally, a nested list containing the predictions for each class.
         '''
+        EARTH_RADIUS = 6371000  # Radius in meters of Earth
+        GOOGLE_CAR_CAMERA_HEIGHT = 3 # ballpark estimate of the number of meters that camera is off the ground
+
+        def world_coordinates_to_streetview_pixel(lat, lng, lat1,lng1, yaw, image_width, image_height,height=0, zoom=None, object_dims=None, method=None):
+            camera_height = GOOGLE_CAR_CAMERA_HEIGHT  # ballpark estimate of the number of meters that camera is off the ground
+            pitch = 0#float(pano['Projection']['tilt_pitch_deg'])*math.pi/180
+            dx, dy = math.cos(math.radians(lat1))*math.sin(math.radians(lng-lng1)), math.sin(math.radians(lat-lat1))
+            look_at_angle = math.pi + math.atan2(dx, dy) - yaw  
+            while look_at_angle > 2*math.pi: look_at_angle = look_at_angle-2*math.pi
+            while look_at_angle < 0: look_at_angle = look_at_angle+2*math.pi
+            z = math.sqrt(dx*dx+dy*dy)*EARTH_RADIUS
+
+            if object_dims is None:
+                x = (image_width*look_at_angle)/(2*math.pi)
+                y = image_height/2 - image_height*(math.atan2(height-camera_height, z)-pitch)/(math.pi) 
+                return x, y 
+            else:
+                x1 = image_width*(math.atan2(-object_dims[0]/2, z)+look_at_angle)/(2*math.pi)
+                x2 = image_width*(math.atan2(object_dims[0]/2, z)+look_at_angle)/(2*math.pi)
+                y1 = image_height/2 - image_height*(math.atan2(height+object_dims[1]-camera_height, z)+pitch)/(math.pi)  
+                y2 = image_height/2 - image_height*(math.atan2(height-camera_height, z)+pitch)/(math.pi)  
+                return x1, y1, x2, y2
+
+        def streetview_pixel_to_world_coordinates(lat1,lng1,yaw, image_width, image_height, x, y):
+            camera_height = GOOGLE_CAR_CAMERA_HEIGHT
+            pitch = 0
+            height = 0
+
+            look_at_angle = x*(2*math.pi)/image_width
+            tilt_angle = (image_height/2-y)*math.pi/image_height+pitch
+            z = (height-camera_height) / math.tan(min(-1e-2,tilt_angle))
+            dx = math.sin(look_at_angle-math.pi+yaw)*z/EARTH_RADIUS
+            dy = math.cos(look_at_angle-math.pi+yaw)*z/EARTH_RADIUS
+            lat = lat1 + math.degrees(math.asin(dy))
+            lng = lng1 + math.degrees(math.asin(dx/math.cos(math.radians(lat1))))
+
+            return lat,lng
 
         class_id_pred = self.pred_format['class_id']
         conf_pred     = self.pred_format['conf']
@@ -379,6 +416,7 @@ class Evaluator:
             # If the model was created in 'training' mode, the raw predictions need to
             # be decoded and filtered, otherwise that's already taken care of.
 
+
             if self.model_mode == 'training':
                 # Decode.
                 y_pred = decode_detections(y_pred,
@@ -401,8 +439,8 @@ class Evaluator:
 
             # Iterate over all batch items.
             for k, batch_item in enumerate(y_pred):
-
-                image_id = batch_image_ids[k][1]
+                image_id = batch_image_ids[k][0]
+                image_id1 = batch_image_ids[k][1]
 
                 for box in batch_item:
                     class_id = int(box[class_id_pred])
@@ -411,11 +449,28 @@ class Evaluator:
                         confidence = round(box[conf_pred], round_confidences)
                     else:
                         confidence = box[conf_pred]
+
                     xmin = round(box[xmin_pred], 1)
                     ymin = round(box[ymin_pred], 1)
                     xmax = round(box[xmax_pred], 1)
                     ymax = round(box[ymax_pred], 1)
                     prediction = (image_id, confidence, xmin, ymin, xmax, ymax)
+                    x = xmax - xmin
+                    x = x / 2
+                    x = xmin + x
+
+                    latt,longt = streetview_pixel_to_world_coordinates(geox[0][0][1],geox[0][0][2],geox[0][0][0], 2048, 1024, x, ymax)
+                    xt,yt = world_coordinates_to_streetview_pixel(latt,longt, geoz[0][0][1],geoz[0][0][2], geoz[0][0][0], 2048, 1024)
+                    x_h = (xmax - xmin)/2.0
+                    y_h = (ymax - ymin)/2.0
+                    xmin_ = xt - x_h
+
+                    ymin_ = yt - 2*y_h
+                    xmax_ = xt + x_h
+                    ymax_ = yt + y_h
+
+                    prediction = (image_id1, confidence, xmin_, ymin_, xmax_, ymax_)
+
                     # Append the predicted box to the results list for its class.
                     results[class_id].append(prediction)
 
@@ -509,15 +564,7 @@ class Evaluator:
             tr = trange(len(ground_truth), file=sys.stdout)
         else:
             tr = range(len(ground_truth))
-        # print("tr: ",len(tr))
-        # Iterate over the ground truth for all images in the dataset.
-        # print("eval neut: ", self.data_generator.eval_neutral)
-        # print("eval neut len: ", len(self.data_generator.eval_neutral))
 
-        # print("tr: ",len(tr))
-        # Iterate over the ground truth for all images in the dataset.
-        # print("eval neut: ", self.data_generator.eval_neutral)
-        # print("eval neut len: ", len(self.data_generator.eval_neutral))
         for i in tr:
 
             boxes_gt = np.asarray(ground_truth[i],dtype=np.int64)
@@ -593,6 +640,10 @@ class Evaluator:
 
         if self.prediction_results is None:
             raise ValueError("There are no prediction results. You must run `predict_on_dataset()` before calling this method.")
+            def identity_layer(tensor):
+                return tensor
+
+
 
         class_id_gt = self.gt_format['class_id']
         xmin_gt = self.gt_format['xmin']
@@ -604,17 +655,19 @@ class Evaluator:
         # Convert the ground truth to a more efficient format for what we need
         # to do, which is access ground truth by image ID repeatedly.
         ground_truth = {}
-
+        ground_truth1 = {}
         eval_neutral_available = not (self.data_generator.eval_neutral is None) # Whether or not we have annotations to decide whether ground truth boxes should be neutral or not.
         for i in range(len(self.data_generator.image_ids)):
+
             image_id = str(self.data_generator.image_ids[i][0])
-            image_id1 = str(self.data_generator.image_ids[i][0])
+            image_id1 = str(self.data_generator.image_ids[i][1])
+
             labels = self.data_generator.labels[i]
             labels1 = self.data_generator.labels[i]
 
             if ignore_neutral_boxes and eval_neutral_available:
                 ground_truth[image_id] = (np.asarray(labels), np.asarray(self.data_generator.eval_neutral[i]))
-                ground_truth1[image_id1] = (np.asarray(labels1), np.asarray(self.data_generator.eval_neutral[i]))
+                ground_truth1[image_id1] = (np.asarray(labels1), np.asarray(self.data_generator.eval_neutral1[i]))
             else:
                 ground_truth[image_id] = np.asarray(labels)
                 ground_truth1[image_id1] = np.asarray(labels1)
@@ -667,11 +720,13 @@ class Evaluator:
 
             # Keep track of which ground truth boxes were already matched to a detection.
             gt_matched = {}
+            gt_matched1 = {}
             # Iterate over all predictions.
             for i in tr:
 
                 prediction = predictions_sorted[i]
-                image_id = prediction['image_id']
+                image_id1 = prediction['image_id']
+
                 pred_box = np.asarray(list(prediction[['xmin', 'ymin', 'xmax', 'ymax']])) # Convert the structured array element to a regular array.
 
                 # Get the relevant ground truth boxes for this prediction,
@@ -681,28 +736,48 @@ class Evaluator:
                 # The ground truth could either be a tuple with `(ground_truth_boxes, eval_neutral_boxes)`
                 # or only `ground_truth_boxes`.
                 if ignore_neutral_boxes and eval_neutral_available:
-                    gt, eval_neutral = ground_truth1[image_id1]
+                    gt, eval_neutral = ground_truth[image_id]
+                    gt1, eval_neutral1 = ground_truth1[image_id1]
                 else:
-                
+                    gt = ground_truth[image_id]
+                    gt1 = ground_truth1[image_id1]
 
+                gt = np.asarray(gt)
+                gt1 = np.asarray(gt1)
                 class_mask = gt[:,class_id_gt] == class_id
                 gt = gt[class_mask]
-                # if ignore_neutral_boxes and eval_neutral_available:
-                #     eval_neutral = eval_neutral[class_mask]
 
-                if gt.size == 0:
+                print("class mask: ", class_mask.shape)
+                print("class_id_gt: ", class_id_gt)
+                print("class_id: ", class_id)
+                print("gt: ", gt.shape)
+
+                class_mask1 = gt1[:,class_id_gt] == class_id
+                gt1 = gt1[class_mask1]
+                print("-------------")
+                print("class_mask1: ", class_mask1.shape)
+                print("class_id_gt: ", class_id_gt)
+                print("class_id: ", class_id)
+                print("gt1: ", gt1.shape)
+
+                if ignore_neutral_boxes and eval_neutral_available:
+                    eval_neutral = eval_neutral[class_mask]
+                    eval_neutral1 = eval_neutral1[class_mask1]
+
+                if gt.size == 0 or gt1.size:
                     # If the image doesn't contain any objects of this class,
                     # the prediction becomes a false positive.
                     false_pos[i] = 1
                     continue
-
+                print("gt1: ",gt1[:,[xmin_gt, ymin_gt, xmax_gt, ymax_gt]])
+                print("pred_box: ",pred_box)
                 # Compute the IoU of this prediction with all ground truth boxes of the same class.
-                overlaps = iou(boxes1=gt[:,[xmin_gt, ymin_gt, xmax_gt, ymax_gt]],
+                overlaps = iou(boxes1=gt1[:,[xmin_gt, ymin_gt, xmax_gt, ymax_gt]],
                                boxes2=pred_box,
                                coords='corners',
                                mode='element-wise',
                                border_pixels=border_pixels)
-
+                print("overlaps: ",overlaps.shape)
                 # For each detection, match the ground truth box with the highest overlap.
                 # It's possible that the same ground truth box will be matched to multiple
                 # detections.
@@ -716,23 +791,23 @@ class Evaluator:
                     # false positives.
                     false_pos[i] = 1
                 else:
-                    if not (ignore_neutral_boxes and eval_neutral_available) or (eval_neutral[gt_match_index] == False):
+                    if not (ignore_neutral_boxes and eval_neutral_available) or (eval_neutral1[gt_match_index] == False):
                         # If this is not a ground truth that is supposed to be evaluation-neutral
                         # (i.e. should be skipped for the evaluation) or if we don't even have the
                         # concept of neutral boxes.
-                        if not (image_id in gt_matched):
+                        if not (image_id1 in gt_matched1):
                             # True positive:
                             # If the matched ground truth box for this prediction hasn't been matched to a
                             # different prediction already, we have a true positive.
                             true_pos[i] = 1
-                            gt_matched[image_id] = np.zeros(shape=(gt.shape[0]), dtype=np.bool)
-                            gt_matched[image_id][gt_match_index] = True
+                            gt_matched1[image_id1] = np.zeros(shape=(gt1.shape[0]), dtype=np.bool)
+                            gt_matched1[image_id1][gt_match_index] = True
                         elif not gt_matched[image_id][gt_match_index]:
                             # True positive:
                             # If the matched ground truth box for this prediction hasn't been matched to a
                             # different prediction already, we have a true positive.
                             true_pos[i] = 1
-                            gt_matched[image_id][gt_match_index] = True
+                            gt_matched1[image_id1][gt_match_index1] = True
                         else:
                             # False positive, duplicate detection:
                             # If the matched ground truth box for this prediction has already been matched
