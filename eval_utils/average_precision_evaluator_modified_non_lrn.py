@@ -687,7 +687,14 @@ class Evaluator:
                     gt = ground_truth[image_id]
                 gt = np.asarray(gt)
                 indz = np.where(gt[:,5]!=99)
+                print("indz:",indz.shape)
+                print("len:",len(indz[0]))
+                indx = np.random.choice(len(indz[0]), 1)
                 gt = gt[indz]
+                gtid = gt[indx]
+                ids = gtid[:,5]
+                print("gtid: ",gtid)
+                print("ids: ", ids)
 
                 gt1 = np.asarray(gt1)
                 indz1 = np.where(gt1[:,5]!=99)
