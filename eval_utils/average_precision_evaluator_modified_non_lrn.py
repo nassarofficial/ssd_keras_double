@@ -604,7 +604,7 @@ class Evaluator:
         # Convert the ground truth to a more efficient format for what we need
         # to do, which is access ground truth by image ID repeatedly.
         ground_truth = {}
-        ground_truth1 = {}
+
         eval_neutral_available = not (self.data_generator.eval_neutral is None) # Whether or not we have annotations to decide whether ground truth boxes should be neutral or not.
         for i in range(len(self.data_generator.image_ids)):
             image_id = str(self.data_generator.image_ids[i][0])
@@ -667,7 +667,6 @@ class Evaluator:
 
             # Keep track of which ground truth boxes were already matched to a detection.
             gt_matched = {}
-            gt_matched1 = {}
             # Iterate over all predictions.
             for i in tr:
 
@@ -682,27 +681,10 @@ class Evaluator:
                 # The ground truth could either be a tuple with `(ground_truth_boxes, eval_neutral_boxes)`
                 # or only `ground_truth_boxes`.
                 if ignore_neutral_boxes and eval_neutral_available:
-                    gt, eval_neutral = ground_truth[image_id]
+                    gt, eval_neutral = ground_truth1[image_id1]
                 else:
-                    gt = ground_truth[image_id]
-                gt = np.asarray(gt)
-                indz = np.where(gt[:,5]!=99)
-                print("indz:",indz.shape)
-                print("len:",len(indz[0]))
-                indx = np.random.choice(len(indz[0]), 1)
-                gt = gt[indz]
-                gtid = gt[indx]
-                ids = gtid[:,5]
-                print("gtid: ",gtid)
-                print("ids: ", ids)
-
-                gt1 = np.asarray(gt1)
-                indz1 = np.where(gt1[:,5]!=99)
-                gt1 = gt1[indz1]
-
-                ########### pick random gt
-                ########### convert random pred to the other dimension
                 
+
                 class_mask = gt[:,class_id_gt] == class_id
                 gt = gt[class_mask]
                 # if ignore_neutral_boxes and eval_neutral_available:
@@ -715,7 +697,7 @@ class Evaluator:
                     continue
 
                 # Compute the IoU of this prediction with all ground truth boxes of the same class.
-                overlaps = iou(boxes1=gt2[:,[xmin_gt, ymin_gt, xmax_gt, ymax_gt]],
+                overlaps = iou(boxes1=gt[:,[xmin_gt, ymin_gt, xmax_gt, ymax_gt]],
                                boxes2=pred_box,
                                coords='corners',
                                mode='element-wise',
