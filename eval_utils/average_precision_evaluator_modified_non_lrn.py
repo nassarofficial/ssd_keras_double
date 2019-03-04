@@ -469,7 +469,7 @@ class Evaluator:
                     xmax_ = xt + x_h
                     ymax_ = yt + y_h
 
-                    prediction = (image_id1, confidence, xmin_, ymin_, xmax_, ymax_)
+                    prediction = (image_id1, confidence, int(xmin_), int(ymin_), int(xmax_), int(ymax_))
 
                     # Append the predicted box to the results list for its class.
                     results[class_id].append(prediction)
@@ -663,7 +663,7 @@ class Evaluator:
             image_id1 = str(self.data_generator.image_ids[i][1])
 
             labels = self.data_generator.labels[i]
-            labels1 = self.data_generator.labels[i]
+            labels1 = self.data_generator.labels1[i]
 
             if ignore_neutral_boxes and eval_neutral_available:
                 ground_truth[image_id] = (np.asarray(labels), np.asarray(self.data_generator.eval_neutral[i]))
@@ -726,7 +726,6 @@ class Evaluator:
 
                 prediction = predictions_sorted[i]
                 image_id1 = prediction['image_id']
-
                 pred_box = np.asarray(list(prediction[['xmin', 'ymin', 'xmax', 'ymax']])) # Convert the structured array element to a regular array.
 
                 # Get the relevant ground truth boxes for this prediction,
@@ -747,19 +746,10 @@ class Evaluator:
                 class_mask = gt[:,class_id_gt] == class_id
                 gt = gt[class_mask]
 
-                print("class mask: ", class_mask.shape)
-                print("class_id_gt: ", class_id_gt)
-                print("class_id: ", class_id)
-                print("gt: ", gt.shape)
-
+                print("gt1: ",gt1[:,[xmin_gt, ymin_gt, xmax_gt, ymax_gt]])
+                print("pred_box: ",pred_box)
                 class_mask1 = gt1[:,class_id_gt] == class_id
                 gt1 = gt1[class_mask1]
-                print("-------------")
-                print("class_mask1: ", class_mask1.shape)
-                print("class_id_gt: ", class_id_gt)
-                print("class_id: ", class_id)
-                print("gt1: ", gt1.shape)
-
                 if ignore_neutral_boxes and eval_neutral_available:
                     eval_neutral = eval_neutral[class_mask]
                     eval_neutral1 = eval_neutral1[class_mask1]
@@ -769,15 +759,13 @@ class Evaluator:
                     # the prediction becomes a false positive.
                     false_pos[i] = 1
                     continue
-                print("gt1: ",gt1[:,[xmin_gt, ymin_gt, xmax_gt, ymax_gt]])
-                print("pred_box: ",pred_box)
                 # Compute the IoU of this prediction with all ground truth boxes of the same class.
+
                 overlaps = iou(boxes1=gt1[:,[xmin_gt, ymin_gt, xmax_gt, ymax_gt]],
                                boxes2=pred_box,
                                coords='corners',
                                mode='element-wise',
                                border_pixels=border_pixels)
-                print("overlaps: ",overlaps.shape)
                 # For each detection, match the ground truth box with the highest overlap.
                 # It's possible that the same ground truth box will be matched to multiple
                 # detections.
@@ -802,7 +790,7 @@ class Evaluator:
                             true_pos[i] = 1
                             gt_matched1[image_id1] = np.zeros(shape=(gt1.shape[0]), dtype=np.bool)
                             gt_matched1[image_id1][gt_match_index] = True
-                        elif not gt_matched[image_id][gt_match_index]:
+                        elif not gt_matched1[image_id1][gt_match_index]:
                             # True positive:
                             # If the matched ground truth box for this prediction hasn't been matched to a
                             # different prediction already, we have a true positive.
