@@ -579,6 +579,16 @@ def ssd_300(image_size,
 
         return model
 
+        def proj_net(input,branch):
+            input_ = Input(shape=(input.shape), name='mobox_proj_'+branch)
+            mbox_proj = Dense(32, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
+            mbox_proj = Dense(16, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
+            mbox_proj = Dense(8, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
+            mbox_proj = Dense(4, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
+            model = Model(input=[input_],output=[mbox_proj])
+            return model
+
+
         weights_path = 'weights/VGG_ILSVRC_16_layers_fc_reduced.h5'
 
         X = Input(shape=(img_height, img_width, img_channels))
@@ -610,10 +620,10 @@ def ssd_300(image_size,
         # mbox_proj = Projector(300,600, EARTH_RADIUS, GOOGLE_CAR_CAMERA_HEIGHT, MATH_PI)(mbox_loc_tot)
 
         mbox_proj = Lambda(projector, name='predictions'+'__1_mbox_proj')(mbox_loc_tot)
-        mbox_proj_2 = Lambda(projector, name='predictions'+'__2_mbox_proj')(mbox_loc_tot_2)
+        mbox_proj1 = Lambda(projector, name='predictions'+'__2_mbox_proj')(mbox_loc_tot_2)
 
-        # mbox_conf_softmax = 2, mbox_loc = 4, mbox_priorbox = 8, mbox_conf_softmax= 2, mbox_proj= 4, mbox_priorbox = 8
-        # predictions = Concatenate(axis=2, name='predictions'+'_'+suf)([mbox_conf_softmax, mbox_loc, mbox_priorbox, mbox_proj])
+        mbox_proj_1 = proj_net(mbox_proj,"_1")
+        mbox_proj_2 = proj_net(mbox_proj,"_2")
 
         empty_2 = Lambda(zeroer)(mbox_conf_softmax)
         empty_4 = Lambda(zeroer)(mbox_loc)
@@ -621,13 +631,8 @@ def ssd_300(image_size,
         predictions = Concatenate(axis=2, name='predictions'+suf)([mbox_conf_softmax, mbox_loc, mbox_priorbox,empty_4])
         predictions_2 = Concatenate(axis=2, name='predictions'+suf)([mbox_conf_softmax, mbox_loc, mbox_priorbox,empty_4])
 
-        # mbox_proj = Dense(32, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
-        # mbox_proj = Dense(16, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
-        # mbox_proj = Dense(8, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
-        # mbox_proj = Dense(4, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
 
-
-        predictions_proj = Concatenate(axis=2, name='predictions'+suf+'_proj')([predictions, mbox_conf_softmax, mbox_proj, mbox_priorbox,empty_4])
+        predictions_proj = Concatenate(axis=2, name='predictions'+suf+'_proj')([predictions, mbox_conf_softmax, mbox_proj_1, mbox_priorbox,empty_4])
         predictions_proj_2 = Concatenate(axis=2, name='predictions'+suf+'_proj')([predictions_2, mbox_conf_softmax_2, mbox_proj_2, mbox_priorbox,empty_4])
 
 

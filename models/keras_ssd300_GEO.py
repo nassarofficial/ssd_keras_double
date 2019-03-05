@@ -425,7 +425,7 @@ def ssd_300(image_size,
 
         y_out = tf.concat([cx_/600,cy_/300,w_/600,h_/300], -1)
 
-        return y_out
+        return y_out, lat, lng
 
     ############################################################################
     # Build the network.

@@ -131,7 +131,6 @@ class SSDLoss_center:
         '''
         y_true_1 = y_true[:,:,:18]
         y_pred_1 = y_pred[:,:,:16]
-
         y_true_2 = y_true[:,:,18:]
         y_pred_2 = y_pred[:,:,16:]
 
@@ -190,6 +189,9 @@ class SSDLoss_center:
         y_pred1 = y_pred_1
         t_true1 = y_true_1
 
+        y_pred1 = y_pred_1
+        t_true1 = y_true_1
+
         y_true_1_p1 = tf.slice(t_true1, [0, 0, 0], [-1, -1, 5])
         y_true_1_p2 = tf.slice(t_true1, [0, 0, 7], [-1, -1, -1])
 
@@ -200,10 +202,8 @@ class SSDLoss_center:
 
         # 1: Compute the losses for class and box predictions for every box.
 
-
-
         classification_loss = tf.to_float(self.log_loss(t_true1[:,:,:-14], y_pred1[:,:,:-14])) # Output shape: (batch_size, n_boxes)
-        localization_loss = tf.to_float(self.smooth_L1_loss(t_true1[:,:,-14:-10], y_pred1[:,:,-16:-10])) # Output shape: (batch_size, n_boxes)
+        localization_loss = tf.to_float(self.smooth_L1_loss(t_true1[:,:,-14:-10], y_pred1[:,:,-14:-10])) # Output shape: (batch_size, n_boxes)
         # print("classification_loss: ", classification_loss)
         # return localization_loss
         
