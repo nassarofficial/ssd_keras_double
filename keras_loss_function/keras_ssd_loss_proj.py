@@ -186,8 +186,8 @@ class SSDLoss_proj:
         # print("y_true: ", y_true)
         # print("y_pred: ", y_pred)      
 
-        y_pred1 = y_true_1
-        t_true1 = y_pred_1
+        y_pred1 = y_pred_1
+        t_true1 = y_true_1
 
         batch_size = tf.shape(y_pred1)[0] # Output dtype: tf.int32
         n_boxes = tf.shape(t_true1)[1] # Output dtype: tf.int32, note that `n_boxes` in this context denotes the total number of boxes per image, not the number of boxes per cell.

@@ -455,6 +455,7 @@ class Evaluator:
                     xmax = round(box[xmax_pred], 1)
                     ymax = round(box[ymax_pred], 1)
                     prediction = (image_id, confidence, xmin, ymin, xmax, ymax)
+                    print("prediction:",prediction)
                     x = xmax - xmin
                     x = x / 2
                     x = xmin + x
@@ -470,7 +471,8 @@ class Evaluator:
                     ymax_ = yt + y_h
 
                     prediction = (image_id1, confidence, int(xmin_), int(ymin_), int(xmax_), int(ymax_))
-
+                    print("prediction after:",prediction)
+                    print("--")
                     # Append the predicted box to the results list for its class.
                     results[class_id].append(prediction)
 
@@ -745,16 +747,18 @@ class Evaluator:
                 gt1 = np.asarray(gt1)
                 class_mask = gt[:,class_id_gt] == class_id
                 gt = gt[class_mask]
-
+                
                 print("gt1: ",gt1[:,[xmin_gt, ymin_gt, xmax_gt, ymax_gt]])
                 print("pred_box: ",pred_box)
                 class_mask1 = gt1[:,class_id_gt] == class_id
                 gt1 = gt1[class_mask1]
+
+
                 if ignore_neutral_boxes and eval_neutral_available:
                     eval_neutral = eval_neutral[class_mask]
                     eval_neutral1 = eval_neutral1[class_mask1]
 
-                if gt.size == 0 or gt1.size:
+                if gt.size == 0 or gt1.size== 0:
                     # If the image doesn't contain any objects of this class,
                     # the prediction becomes a false positive.
                     false_pos[i] = 1
