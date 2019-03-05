@@ -153,7 +153,7 @@ class SSDLoss_proj:
             return equal_tensor
 
 
-        def matcher(y_true_1,y_true_2,y_pred_1,y_pred_2, bsz):
+        def matcher(y_true_1,y_pred_1,y_true_2,y_pred_2, bsz):
             pred = 0
             gt = 0
             for i in range(bsz):
