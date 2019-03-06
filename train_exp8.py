@@ -106,7 +106,7 @@ losses = {
 
 }
 lossWeights = {"predictions_1": 1.0,"predictions_2": 1.0,"predictions_1_proj": 1.0,"predictions_2_proj": 1.0}
-MetricstDict = {"predictions_1": Accuracy,"predictions_1_proj": Accuracy_Proj}
+MetricstDict = {"predictions_1": Accuracy,"predictions_1_proj": Accuracy}
 
 model.compile(optimizer=adam, loss=losses, loss_weights=lossWeights, metrics=MetricstDict) 
 
