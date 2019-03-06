@@ -119,7 +119,7 @@ class DecodeDetections(Layer):
         # 1. Convert the box coordinates from predicted anchor box offsets to predicted
         #    absolute coordinates
         #####################################################################################
-        def outputer_tensor(y_pred):
+        def outputer_tensor(y_pred, orig):
             # Convert anchor box offsets to image offsets.
             y_pred = y_pred[:,:,:14]
             cx = y_pred[...,-12] * y_pred[...,-4] * y_pred[...,-6] + y_pred[...,-8] # cx = cx_pred * cx_variance * w_anchor + cx_anchor
@@ -127,11 +127,17 @@ class DecodeDetections(Layer):
             w = tf.exp(y_pred[...,-10] * y_pred[...,-2]) * y_pred[...,-6] # w = exp(w_pred * variance_w) * w_anchor
             h = tf.exp(y_pred[...,-9] * y_pred[...,-1]) * y_pred[...,-5] # h = exp(h_pred * variance_h) * h_anchor
 
-            # Convert 'centroids' to 'corners'.
-            xmin = cx - 0.5 * w
-            ymin = cy - 0.5 * h
-            xmax = cx + 0.5 * w
-            ymax = cy + 0.5 * h
+            if orig == "orig":
+                # Convert 'centroids' to 'corners'.
+                xmin = (cx - 0.5 * w)
+                ymin = (cy - 0.5 * h)
+                xmax = (cx + 0.5 * w)
+                ymax = (cy + 0.5 * h)
+            else:
+                xmin = (cx - 0.5 * w)
+                ymin = (cy - 0.5 * h)
+                xmax = (cx + 0.5 * w)
+                ymax = (cy + 0.5 * h)
 
             # If the model predicts box coordinates relative to the image dimensions and they are supposed
             # to be converted back to absolute coordinates, do that.
@@ -269,13 +275,11 @@ class DecodeDetections(Layer):
         y_pred_1_proj = y_pred[:,:,54:72]
         y_pred_2_proj = y_pred[:,:,90:108]
 
-        y_p_1 = outputer_tensor(y_pred_1)
-        y_p_2 = outputer_tensor(y_pred_2)
-        y_p_1_proj = outputer_tensor(y_pred_1_proj)
-        y_p_2_proj = outputer_tensor(y_pred_2_proj)
-
-        print("y_p_1: ", y_p_1)
-        return tf.concat(values=[y_p_1, y_p_2, y_p_1_proj, y_p_2_proj], axis=-1)
+        y_p_1 = outputer_tensor(y_pred_1,"orig")
+        y_p_2 = outputer_tensor(y_pred_2,"orig")
+        yp1_on_2 = outputer_tensor(y_pred_1_proj,"proj")
+        yp2_on_1 = outputer_tensor(y_pred_2_proj,"proj")
+        return tf.concat(values=[y_p_1, yp1_on_2, y_p_2, yp2_on_1], axis=-1)
 
 
     def compute_output_shape(self, input_shape):

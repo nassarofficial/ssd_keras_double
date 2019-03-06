@@ -579,78 +579,63 @@ def ssd_300(image_size,
 
         return model
 
-        def proj_net(input,branch):
-            input_ = Input(shape=(input.shape), name='mobox_proj_'+branch)
-            mbox_proj = Dense(32, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
-            mbox_proj = Dense(16, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
-            mbox_proj = Dense(8, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
-            mbox_proj = Dense(4, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
-            model = Model(input=[input_],output=[mbox_proj])
-            return model
+    def proj_net(inputt,branch):
+        mbox_proj = Dense(32, input_dim=13, kernel_initializer='normal', activation='relu')(inputt)
+        mbox_proj = Dense(16, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
+        mbox_proj = Dense(8, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
+        mbox_proj = Dense(4, input_dim=13, kernel_initializer='normal', activation='relu')(mbox_proj)
+        return mbox_proj
 
 
-        weights_path = 'weights/VGG_ILSVRC_16_layers_fc_reduced.h5'
-
-        X = Input(shape=(img_height, img_width, img_channels))
-        Z = Input(shape=(img_height, img_width, img_channels))
-        X_geo = Input(shape=(17292,3))
-        Z_geo = Input(shape=(17292,3))
-
-
-        ssd1 = ssdmod(X, X_geo, Z_geo, "_1")
-        ssd1.load_weights(weights_path, by_name=True)
-
-        ssd2 = ssdmod(Z, Z_geo, X_geo, "_2")
-        ssd2.load_weights(weights_path, by_name=True)
+    weights_path = 'weights/VGG_ILSVRC_16_layers_fc_reduced.h5'
+    X = Input(shape=(img_height, img_width, img_channels))
+    Z = Input(shape=(img_height, img_width, img_channels))
+    X_geo = Input(shape=(17292,3))
+    Z_geo = Input(shape=(17292,3))
 
 
-        ## fix me
-        ssd1.get_layer(name="mbox_conf__1").output
+    ssd1 = ssdmod(X, X_geo, Z_geo, "_1")
+    ssd1.load_weights(weights_path, by_name=True)
 
-        ssd2.get_layer(name="mbox_conf__2").output
-
-        # The box coordinate predictions will go into the loss function just the way they are,
-        # but for the class predictions, we'll apply a softmax activation layer first
-        mbox_conf_softmax= Activation('softmax', name='mbox_conf_softmax__1')(ssd1.get_layer(name="mbox_conf__1").output)
-        mbox_conf_softmax_2= Activation('softmax', name='mbox_conf_softmax__2')(ssd1.get_layer(name="mbox_conf__2").output)
-
-        mbox_loc_tot = Concatenate(axis=2, name='predictions_tot__1')([mbox_conf, mbox_loc, mbox_priorbox, X_geo, Z_geo])
-        mbox_loc_tot_2 = Concatenate(axis=2, name='predictions_tot__2')([mbox_conf, mbox_loc, mbox_priorbox, Z_geo, X_geo])
-
-        # mbox_proj = Projector(300,600, EARTH_RADIUS, GOOGLE_CAR_CAMERA_HEIGHT, MATH_PI)(mbox_loc_tot)
-
-        mbox_proj = Lambda(projector, name='predictions'+'__1_mbox_proj')(mbox_loc_tot)
-        mbox_proj1 = Lambda(projector, name='predictions'+'__2_mbox_proj')(mbox_loc_tot_2)
-
-        mbox_proj_1 = proj_net(mbox_proj,"_1")
-        mbox_proj_2 = proj_net(mbox_proj,"_2")
-
-        empty_2 = Lambda(zeroer)(mbox_conf_softmax)
-        empty_4 = Lambda(zeroer)(mbox_loc)
-
-        predictions = Concatenate(axis=2, name='predictions'+suf)([mbox_conf_softmax, mbox_loc, mbox_priorbox,empty_4])
-        predictions_2 = Concatenate(axis=2, name='predictions'+suf)([mbox_conf_softmax, mbox_loc, mbox_priorbox,empty_4])
+    ssd2 = ssdmod(Z, Z_geo, X_geo, "_2")
+    ssd2.load_weights(weights_path, by_name=True)
 
 
-        predictions_proj = Concatenate(axis=2, name='predictions'+suf+'_proj')([predictions, mbox_conf_softmax, mbox_proj_1, mbox_priorbox,empty_4])
-        predictions_proj_2 = Concatenate(axis=2, name='predictions'+suf+'_proj')([predictions_2, mbox_conf_softmax_2, mbox_proj_2, mbox_priorbox,empty_4])
+    ## fix me
+    mbox_conf = ssd1.get_layer(name="mbox_conf__1").output
+    mbox_loc = ssd1.get_layer(name="mbox_loc__1").output
+    mbox_priorbox = ssd1.get_layer(name="mbox_priorbox__1").output
+
+    mbox_conf_2 = ssd2.get_layer(name="mbox_conf__2").output
+    mbox_loc_2 = ssd2.get_layer(name="mbox_loc__2").output
+    mbox_priorbox_2 = ssd2.get_layer(name="mbox_priorbox__2").output
 
 
-        # model = Model(input=[x,geo_1,geo_2],output=predictions)
-        model = Model(input=[x,geo_1,geo_2],output=[predictions, predictions_proj])
+    mbox_conf_softmax= Activation('softmax', name='mbox_conf_softmax__1')(mbox_conf)
+    mbox_conf_softmax_2= Activation('softmax', name='mbox_conf_softmax__2')(mbox_conf_2)
+
+    mbox_loc_tot = Concatenate(axis=2, name='predictions_tot__1')([mbox_conf, mbox_loc, mbox_priorbox, X_geo, Z_geo])
+    mbox_loc_tot_2 = Concatenate(axis=2, name='predictions_tot__2')([mbox_conf_2, mbox_loc_2, mbox_priorbox_2, Z_geo, X_geo])
+
+    mbox_proj = Lambda(projector, name='predictions'+'__1_mbox_proj')(mbox_loc_tot)
+    mbox_proj_2 = Lambda(projector, name='predictions'+'__2_mbox_proj')(mbox_loc_tot_2)
+
+    mbox_proj_1 = proj_net(mbox_proj,"_1")
+    mbox_proj_2 = proj_net(mbox_proj_2,"_2")
+
+    empty_2 = Lambda(zeroer)(mbox_conf_softmax)
+    empty_4 = Lambda(zeroer)(mbox_loc)
+
+    predictions = Concatenate(axis=2, name='predictions_1')([mbox_conf_softmax, mbox_loc, mbox_priorbox,empty_4])
+    predictions_2 = Concatenate(axis=2, name='predictions_2')([mbox_conf_softmax_2, mbox_loc_2, mbox_priorbox_2,empty_4])
 
 
-
+    predictions_proj = Concatenate(axis=2, name='predictions_1_proj')([predictions, mbox_conf_softmax, mbox_proj_1, mbox_priorbox,empty_4])
+    predictions_proj_2 = Concatenate(axis=2, name='predictions_2_proj')([predictions_2, mbox_conf_softmax_2, mbox_proj_2, mbox_priorbox,empty_4])
 
     if mode == 'training':
-        # pred_1_proj = Concatenate(axis=2, name='predictions_1_proj_tot')([ssd1.get_layer(name="predictions_1").output,ssd1.get_layer(name="predictions_1_proj").output])
-        # pred_2_proj = Concatenate(axis=2, name='predictions_2_proj_tot')([ssd2.get_layer(name="predictions_2").output,ssd2.get_layer(name="predictions_2_proj").output])
 
-        # model = Model(inputs=[X, Z, X_geo, Z_geo], outputs=[ssd1.get_layer(name="predictions_1").output,ssd2.get_layer(name="predictions_2").output,pred_1_proj,pred_2_proj])
-        model = Model(inputs=[X, Z, X_geo, Z_geo], outputs=[ssd1.get_layer(name="predictions_1").output,ssd2.get_layer(name="predictions_2").output,ssd1.get_layer(name="predictions_1_proj").output,ssd2.get_layer(name="predictions_2_proj").output])
-
-        # model = Model(inputs=[X, Z, X_geo, Z_geo], outputs=[ssd1.get_layer("predictions_1").output, ssd2.get_layer("predictions_2").output])
-        # model = Model(inputs=[x, x_x, geo_1, geo_2], outputs=ssd1.get_layer("predictions_1").output)
+        model = Model(inputs=[X, Z, X_geo, Z_geo], outputs=[predictions,predictions_2,predictions_proj,predictions_proj_2])
 
 
     elif mode == 'inference':

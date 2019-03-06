@@ -375,33 +375,22 @@ class Evaluator:
             # Generate batch.
             batch_X, batch_Z, geox, geoz, batch_image_ids, batch_eval_neutral,batch_eval_neutral1, batch_inverse_transforms,batch_inverse_transforms1, batch_orig_labels,batch_orig_labels1 = next(generator)
             # Predict.
-            y_pred = self.model.predict([batch_X,batch_Z,geox,geoz])
-            # If the model was created in 'training' mode, the raw predictions need to
-            # be decoded and filtered, otherwise that's already taken care of.
+            y_predd = self.model.predict([batch_X,batch_Z,geox,geoz])
+            y_pred_1 = y_predd[:,:,:6]
+            y_pred_1_on_2 = y_predd[:,:,6:12]
+            y_pred_2 = y_predd[:,:,12:18]
+            y_pred_2_on_1 = y_predd[:,:,18:]
+            y_pred = y_pred_1_on_2
 
-            if self.model_mode == 'training':
-                # Decode.
-                y_pred = decode_detections(y_pred,
-                                           confidence_thresh=decoding_confidence_thresh,
-                                           iou_threshold=decoding_iou_threshold,
-                                           top_k=decoding_top_k,
-                                           input_coords=decoding_pred_coords,
-                                           normalize_coords=decoding_normalize_coords,
-                                           img_height=img_height,
-                                           img_width=img_width,
-                                           border_pixels=decoding_border_pixels)
-            else:
-                # Filter out the all-zeros dummy elements of `y_pred`.
-                y_pred_filtered = []
-                for i in range(len(y_pred)):
-                    y_pred_filtered.append(y_pred[i][y_pred[i,:,0] != 0])
-                y_pred = y_pred_filtered
+            y_pred_filtered = []
+            for i in range(len(y_pred)):
+                y_pred_filtered.append(y_pred[i][y_pred[i,:,0] != 0])
+            y_pred = y_pred_filtered
             # Convert the predicted box coordinates for the original images.
             y_pred = apply_inverse_transforms(y_pred, batch_inverse_transforms)
 
             # Iterate over all batch items.
             for k, batch_item in enumerate(y_pred):
-
                 image_id = batch_image_ids[k][1]
 
                 for box in batch_item:
@@ -424,56 +413,7 @@ class Evaluator:
         if ret:
             return results
 
-    def write_predictions_to_txt(self,
-                                 classes=None,
-                                 out_file_prefix='comp3_det_test_',
-                                 verbose=True):
-        '''
-        Writes the predictions for all classes to separate text files according to the Pascal VOC results format.
 
-        Arguments:
-            classes (list, optional): `None` or a list of strings containing the class names of all classes in the dataset,
-                including some arbitrary name for the background class. This list will be used to name the output text files.
-                The ordering of the names in the list represents the ordering of the classes as they are predicted by the model,
-                i.e. the element with index 3 in this list should correspond to the class with class ID 3 in the model's predictions.
-                If `None`, the output text files will be named by their class IDs.
-            out_file_prefix (str, optional): A prefix for the output text file names. The suffix to each output text file name will
-                be the respective class name followed by the `.txt` file extension. This string is also how you specify the directory
-                in which the results are to be saved.
-            verbose (bool, optional): If `True`, will print out the progress during runtime.
-
-        Returns:
-            None.
-        '''
-
-        if self.prediction_results is None:
-            raise ValueError("There are no prediction results. You must run `predict_on_dataset()` before calling this method.")
-
-        # We generate a separate results file for each class.
-        for class_id in range(1, self.n_classes + 1):
-
-            if verbose:
-                print("Writing results file for class {}/{}.".format(class_id, self.n_classes))
-
-            if classes is None:
-                class_suffix = '{:04d}'.format(class_id)
-            else:
-                class_suffix = classes[class_id]
-
-            results_file = open('{}{}.txt'.format(out_file_prefix, class_suffix), 'w')
-
-            for prediction in self.prediction_results[class_id]:
-
-                prediction_list = list(prediction)
-                prediction_list[0] = '{:06d}'.format(int(prediction_list[0]))
-                prediction_list[1] = round(prediction_list[1], 4)
-                prediction_txt = ' '.join(map(str, prediction_list)) + '\n'
-                results_file.write(prediction_txt)
-
-            results_file.close()
-
-        if verbose:
-            print("All results files saved.")
 
     def get_num_gt_per_class(self,
                              ignore_neutral_boxes=True,
@@ -606,9 +546,9 @@ class Evaluator:
         eval_neutral_available = not (self.data_generator.eval_neutral is None) # Whether or not we have annotations to decide whether ground truth boxes should be neutral or not.
         for i in range(len(self.data_generator.image_ids)):
             image_id = str(self.data_generator.image_ids[i][1])
-            labels = self.data_generator.labels[i]
+            labels = self.data_generator.labels1[i]
             if ignore_neutral_boxes and eval_neutral_available:
-                ground_truth[image_id] = (np.asarray(labels), np.asarray(self.data_generator.eval_neutral[i]))
+                ground_truth[image_id] = (np.asarray(labels), np.asarray(self.data_generator.eval_neutral1[i]))
             else:
                 ground_truth[image_id] = np.asarray(labels)
 
@@ -645,10 +585,10 @@ class Evaluator:
                                         ('xmax', 'f4'),
                                         ('ymax', 'f4')])
             # Create the structured array
-            print("predictions: ", predictions)
+            # print("predictions: ", predictions)
             predictions = np.array(predictions, dtype=preds_data_type)
-            print("preds_data_type: ", preds_data_type)
-            print("###################################################################################")
+            # print("preds_data_type: ", preds_data_type)
+            # print("###################################################################################")
 
 
             # Sort the detections by decreasing confidence.
