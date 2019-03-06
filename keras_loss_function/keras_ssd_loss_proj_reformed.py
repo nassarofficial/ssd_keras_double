@@ -172,7 +172,7 @@ class SSDLoss_proj:
                 set2 = tf.cast(y_true_2_new[i,:,-4],dtype=tf.int32)
                 
                 id_pick = tf.sets.set_intersection(set1[None,:], set2[None, :])
-                id_pick = tf.cast(id_pick.values[0],dtype=tf.float64)
+                id_pick = tf.cast(id_pick.values[0],dtype=tf.float32)
                             
                 filterer = tf.where(tf.equal(y_true_1[i,:,-4],id_pick))
                 filterer_2 = tf.where(tf.equal(y_true_2[i,:,-4],id_pick))

@@ -34,7 +34,6 @@ from data_generator.object_detection_2d_misc_utils import apply_inverse_transfor
 from bounding_box_utils.bounding_box_utils import iou, convert_coordinates
 from ssd_encoder_decoder.matching_utils import match_bipartite_greedy, match_multi
 import random
-np.set_printoptions(threshold=np.nan)
 import tensorflow as tf
 np.random.seed(1337)
 
