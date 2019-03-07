@@ -292,9 +292,9 @@ class SSDLoss_proj:
         # because the relevant criterion to average our loss over is the number of positive boxes in the batch
         # (by which we're dividing in the line above), not the batch size. So in order to revert Keras' averaging
         # over the batch size, we'll have to multiply by it.
-        geoloss = keras.losses.mean_squared_error(y_true_2[:,:,-2:], y_pred_2[:,:,-2:])
 
-        distloss = keras.losses.mean_squared_error(y_true_2[:,:,-3], y_pred_2[:,:,-3])
+        geoloss = K.mean(K.square(y_pred_2[:,:,-2:] - y_true_2[:,:,-2:]), axis=-1)
+        distloss = K.mean(K.square(y_pred_2[:,:,-3] - y_true_2[:,:,-3]), axis=-1)
 
 
         total_loss = (total_loss * tf.to_float(batch_size))+geoloss+distloss

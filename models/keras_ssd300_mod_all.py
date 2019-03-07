@@ -581,7 +581,6 @@ def ssd_300(image_size,
         return model
 
     def proj_net(inputt,branch):
-        inputt = tf.keras.backend.expand_dims(inputt,axis=-1)
         mbox_proj = Dense(16, kernel_initializer='normal', activation='relu')(inputt)
         mbox_proj = Dense(4, kernel_initializer='normal', activation='relu')(mbox_proj)
         return mbox_proj
@@ -594,8 +593,7 @@ def ssd_300(image_size,
         return mbox_proj
 
     def distance_regression(conf, branch):
-        dist = Flatten()(conf)
-        dist = Dense(16)(dist)
+        dist = Dense(16)(conf)
         dist = BatchNormalization()(dist)
         dist = Activation("relu")(dist)
         dist = Dropout(0.5)(dist)
@@ -609,6 +607,21 @@ def ssd_300(image_size,
         geo = Dense(2, kernel_initializer='normal', activation='relu', name="geo_"+branch)(geo)
         return geo
 
+    def crop(start):
+        # Crops (or slices) a Tensor on a given dimension from start to end
+        # example : to crop tensor x[:, :, 5:10]
+        # call slice(2, 5, 10) as you want to crop on the second dimension
+        def func(x):
+            return x[:, :,start:]
+        return Lambda(func)
+
+    def croper(end):
+        # Crops (or slices) a Tensor on a given dimension from start to end
+        # example : to crop tensor x[:, :, 5:10]
+        # call slice(2, 5, 10) as you want to crop on the second dimension
+        def func(x):
+            return x[:, :,:end]
+        return Lambda(func)
 
     weights_path = 'weights/VGG_ILSVRC_16_layers_fc_reduced.h5'
     X = Input(shape=(img_height, img_width, img_channels))
@@ -643,24 +656,33 @@ def ssd_300(image_size,
     mbox_proj = Lambda(projector, name='predictions'+'__1_mbox_proj')(mbox_loc_tot)
     mbox_proj_2 = Lambda(projector, name='predictions'+'__2_mbox_proj')(mbox_loc_tot_2)
 
-    mbox_proj_1 = proj_net(mbox_proj[:,:,:-2],"_1")
-    mbox_proj_2 = proj_net(mbox_proj_2[:,:,:-2],"_2")
-    coord_1 = mbox_proj[:,:,-2:]
-    coord_2 = mbox_proj_2[:,:,-2:]
+    coord_1 = crop(-2)(mbox_proj)
+    coord_2 = crop(-2)(mbox_proj_2)
+
+    mbox_proj = croper(-2)(mbox_proj)
+    mbox_proj_2 = croper(-2)(mbox_proj_2)
+
+    mbox_proj_1 = proj_net(mbox_proj,"_1")
+    mbox_proj_2 = proj_net(mbox_proj_2,"_2")
+
+    coord_1 = mbox_proj
+    coord_2 = mbox_proj_2
 
     dist = distance_regression(mbox_conf,"_1")
     dist_2 = distance_regression(mbox_conf_2,"_2")
+
     geo = geo_regression(coord_1,"_1")
     geo_2 = geo_regression(coord_2,"_2")
 
     empty_1 = Lambda(zeroer)(dist)
-    print(mbox_conf_softmax, mbox_loc, mbox_priorbox,empty_1,dist,geo)
+
     predictions = Concatenate(axis=2, name='predictions_1')([mbox_conf_softmax, mbox_loc, mbox_priorbox,empty_1,dist,geo])
     predictions_2 = Concatenate(axis=2, name='predictions_2')([mbox_conf_softmax_2, mbox_loc_2, mbox_priorbox_2,empty_1,dist_2,geo_2])
 
 
     predictions_proj = Concatenate(axis=2, name='predictions_1_proj')([predictions, mbox_conf_softmax, mbox_proj_1, mbox_priorbox,empty_1,dist_2,geo_2])
     predictions_proj_2 = Concatenate(axis=2, name='predictions_2_proj')([predictions_2, mbox_conf_softmax_2, mbox_proj_2, mbox_priorbox,empty_1,dist,geo])
+
 
     if mode == 'training':
 
