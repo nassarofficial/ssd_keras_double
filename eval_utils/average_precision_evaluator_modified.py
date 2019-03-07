@@ -633,8 +633,8 @@ class Evaluator:
                     false_pos[i] = 1
                     continue
                 gt = gt.astype(int)
-                print("gt: ",gt[:,[xmin_gt, ymin_gt, xmax_gt, ymax_gt]])
-                print("pred_box: ",pred_box)
+                # print("gt: ",gt[:,[xmin_gt, ymin_gt, xmax_gt, ymax_gt]])
+                # print("pred_box: ",pred_box)
                 print("-------------------------------------------------------------------")
                 # Compute the IoU of this prediction with all ground truth boxes of the same class.
                 overlaps = iou(boxes1=gt[:,[xmin_gt, ymin_gt, xmax_gt, ymax_gt]],

@@ -425,7 +425,7 @@ def ssd_300(image_size,
 
         y_out = tf.concat([cx_/600,cy_/300,w_/600,h_/300], -1)
 
-        return y_out
+        return Concatenate(axis=2, name='projected')([y_out, lat, lng])
 
     ############################################################################
     # Build the network.
@@ -496,6 +496,7 @@ def ssd_300(image_size,
         conv9_2_mbox_conf = Conv2D(n_boxes[5] * n_classes, (3, 3), padding='same', kernel_initializer='he_normal', kernel_regularizer=l2(l2_reg), name='conv9_2_mbox_conf'+'_'+suf)(conv9_2)
         # We predict 4 box coordinates for each box, hence the localization predictors have depth `n_boxes * 4`
         # Output shape of the localization layers: `(batch, height, width, n_boxes * 4)`
+        
         conv4_3_norm_mbox_loc = Conv2D(n_boxes[0] * 4, (3, 3), padding='same', kernel_initializer='he_normal', kernel_regularizer=l2(l2_reg), name='conv4_3_norm_mbox_loc'+'_'+suf)(conv4_3_norm)
         fc7_mbox_loc = Conv2D(n_boxes[1] * 4, (3, 3), padding='same', kernel_initializer='he_normal', kernel_regularizer=l2(l2_reg), name='fc7_mbox_loc'+'_'+suf)(fc7)
         conv6_2_mbox_loc = Conv2D(n_boxes[2] * 4, (3, 3), padding='same', kernel_initializer='he_normal', kernel_regularizer=l2(l2_reg), name='conv6_2_mbox_loc'+'_'+suf)(conv6_2)
@@ -580,18 +581,31 @@ def ssd_300(image_size,
         return model
 
     def proj_net(inputt,branch):
-        mbox_proj = Dense(32, kernel_initializer='normal', activation='relu')(inputt)
-        mbox_proj = Dense(16, kernel_initializer='normal', activation='relu')(mbox_proj)
-        mbox_proj = Dense(8, kernel_initializer='normal', activation='relu')(mbox_proj)
+        mbox_proj = Conv2D(n_boxes*4, (3, 3), padding='same', kernel_initializer='he_normal', kernel_regularizer=l2(l2_reg))(inputt)
         mbox_proj = Dense(4, kernel_initializer='normal', activation='relu')(mbox_proj)
         return mbox_proj
 
     def proj_net1(inputt,branch):
-        mbox_proj = Dense(32, kernel_initializer='normal', activation='relu')(inputt)
-        mbox_proj = Dense(16, kernel_initializer='normal', activation='relu')(mbox_proj)
-        mbox_proj = Dense(8, kernel_initializer='normal', activation='relu')(mbox_proj)
+        mbox_proj = Conv2D(n_boxes*4, (3, 3), padding='same', kernel_initializer='he_normal', kernel_regularizer=l2(l2_reg))(inputt)
         mbox_proj = Dense(4, kernel_initializer='normal', activation='relu')(mbox_proj)
         return mbox_proj
+
+    def distance_regression(conf, branch):
+        dist = Flatten()(conf)
+        dist = Dense(16)(dist)
+        dist = BatchNormalization()(dist)
+        dist = Activation("relu")(dist)
+        dist = Dropout(0.5)(dist)
+        dist = Dense(1, activation="linear", name="dist_"+branch)(dist)
+        return dist
+
+
+    def geo_regression(coords, branch):
+        geo = Dense(16, kernel_initializer='normal', activation='relu')(geo)
+        geo = Dense(8, kernel_initializer='normal', activation='relu')(geo)
+        geo = Dense(2, kernel_initializer='normal', activation='relu', name="geo_"+branch)(geo)
+        return geo
+
 
     weights_path = 'weights/VGG_ILSVRC_16_layers_fc_reduced.h5'
     X = Input(shape=(img_height, img_width, img_channels))
@@ -626,18 +640,24 @@ def ssd_300(image_size,
     mbox_proj = Lambda(projector, name='predictions'+'__1_mbox_proj')(mbox_loc_tot)
     mbox_proj_2 = Lambda(projector, name='predictions'+'__2_mbox_proj')(mbox_loc_tot_2)
 
-    mbox_proj_1 = proj_net(mbox_proj,"_1")
-    mbox_proj_2 = proj_net1(mbox_proj_2,"_2")
+    mbox_proj_1 = proj_net(mbox_proj[:,:,:-2],"_1")
+    mbox_proj_2 = proj_net(mbox_proj_2[:,:,:-2],"_2")
+    coord_1 = Concatenate(axis=2, name='coords_1')(mbox_proj[:,:,-2:])
+    coord_2 = Concatenate(axis=2, name='coords_2')(mbox_proj_2[:,:,-2:])
 
-    empty_2 = Lambda(zeroer)(mbox_conf_softmax)
-    empty_4 = Lambda(zeroer)(mbox_loc)
+    dist = distance_regression(mbox_conf,"_1")
+    dist_2 = distance_regression(mbox_conf_2,"_2")
+    geo = geo_regression(coord_1,"_1")
+    geo_2 = geo_regression(coord_2,"_2")
 
-    predictions = Concatenate(axis=2, name='predictions_1')([mbox_conf_softmax, mbox_loc, mbox_priorbox,empty_4])
-    predictions_2 = Concatenate(axis=2, name='predictions_2')([mbox_conf_softmax_2, mbox_loc_2, mbox_priorbox_2,empty_4])
+    empty_1 = Lambda(zeroer)(dist)
+
+    predictions = Concatenate(axis=2, name='predictions_1')([mbox_conf_softmax, mbox_loc, mbox_priorbox,empty_1,dist.get_layer(name="dist__1").output,geo.get_layer(name="geo__1").output])
+    predictions_2 = Concatenate(axis=2, name='predictions_2')([mbox_conf_softmax_2, mbox_loc_2, mbox_priorbox_2,empty_1,dist_2.get_layer(name="dist__2").output,geo_2.get_layer(name="geo__2").output])
 
 
-    predictions_proj = Concatenate(axis=2, name='predictions_1_proj')([predictions, mbox_conf_softmax, mbox_proj_1, mbox_priorbox,empty_4])
-    predictions_proj_2 = Concatenate(axis=2, name='predictions_2_proj')([predictions_2, mbox_conf_softmax_2, mbox_proj_2, mbox_priorbox,empty_4])
+    predictions_proj = Concatenate(axis=2, name='predictions_1_proj')([predictions, mbox_conf_softmax, mbox_proj_1, mbox_priorbox,empty_1,dist_2.get_layer(name="dist__2").output,geo_2.get_layer(name="geo__2").output])
+    predictions_proj_2 = Concatenate(axis=2, name='predictions_2_proj')([predictions_2, mbox_conf_softmax_2, mbox_proj_2, mbox_priorbox,empty_1,dist.get_layer(name="dist__1").output,geo.get_layer(name="geo__1").output])
 
     if mode == 'training':
 
