@@ -380,18 +380,18 @@ class Evaluator:
             y_pred_1_on_2 = y_predd[:,:,6:12]
             y_pred_2 = y_predd[:,:,12:18]
             y_pred_2_on_1 = y_predd[:,:,18:]
-            y_pred = y_pred_1_on_2
+            y_pred = y_pred_1
 
             y_pred_filtered = []
             for i in range(len(y_pred)):
                 y_pred_filtered.append(y_pred[i][y_pred[i,:,0] != 0])
             y_pred = y_pred_filtered
             # Convert the predicted box coordinates for the original images.
-            y_pred = apply_inverse_transforms(y_pred, batch_inverse_transforms)
+            y_pred = apply_inverse_transforms(y_pred, batch_inverse_transforms1)
 
             # Iterate over all batch items.
             for k, batch_item in enumerate(y_pred):
-                image_id = batch_image_ids[k][1]
+                image_id = batch_image_ids[k][0]
 
                 for box in batch_item:
                     class_id = int(box[class_id_pred])
@@ -545,10 +545,10 @@ class Evaluator:
         ground_truth = {}
         eval_neutral_available = not (self.data_generator.eval_neutral is None) # Whether or not we have annotations to decide whether ground truth boxes should be neutral or not.
         for i in range(len(self.data_generator.image_ids)):
-            image_id = str(self.data_generator.image_ids[i][1])
-            labels = self.data_generator.labels1[i]
+            image_id = str(self.data_generator.image_ids[i][0])
+            labels = self.data_generator.labels[i]
             if ignore_neutral_boxes and eval_neutral_available:
-                ground_truth[image_id] = (np.asarray(labels), np.asarray(self.data_generator.eval_neutral1[i]))
+                ground_truth[image_id] = (np.asarray(labels), np.asarray(self.data_generator.eval_neutral[i]))
             else:
                 ground_truth[image_id] = np.asarray(labels)
 
@@ -632,7 +632,10 @@ class Evaluator:
                     # the prediction becomes a false positive.
                     false_pos[i] = 1
                     continue
-
+                gt = gt.astype(int)
+                print("gt: ",gt[:,[xmin_gt, ymin_gt, xmax_gt, ymax_gt]])
+                print("pred_box: ",pred_box)
+                print("-------------------------------------------------------------------")
                 # Compute the IoU of this prediction with all ground truth boxes of the same class.
                 overlaps = iou(boxes1=gt[:,[xmin_gt, ymin_gt, xmax_gt, ymax_gt]],
                                boxes2=pred_box,
@@ -650,6 +653,7 @@ class Evaluator:
                     # False positive, IoU threshold violated:
                     # Those predictions whose matched overlap is below the threshold become
                     # false positives.
+                    print("IOU Issues")
                     false_pos[i] = 1
                 else:
                     if not (ignore_neutral_boxes and eval_neutral_available) or (eval_neutral[gt_match_index] == False):
@@ -670,6 +674,7 @@ class Evaluator:
                             true_pos[i] = 1
                             gt_matched[image_id][gt_match_index] = True
                         else:
+                            print("Duplication Issues")
                             # False positive, duplicate detection:
                             # If the matched ground truth box for this prediction has already been matched
                             # to a different prediction previously, it is a duplicate detection for an

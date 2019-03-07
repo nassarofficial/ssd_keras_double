@@ -640,7 +640,7 @@ def ssd_300(image_size,
 
     elif mode == 'inference':
 
-        predictions = Concatenate(axis=2, name='predictions_inference')([ssd1.get_layer(name="predictions_1").output,ssd2.get_layer(name="predictions_2").output,ssd1.get_layer(name="predictions_1_proj").output,ssd2.get_layer(name="predictions_2_proj").output])
+        predictions = Concatenate(axis=2, name='predictions_inference')([predictions,predictions_2,predictions_proj,predictions_proj_2])
 
         decoded_predictions = DecodeDetections(confidence_thresh=confidence_thresh,
                                                iou_threshold=iou_threshold,
