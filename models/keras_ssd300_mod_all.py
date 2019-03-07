@@ -19,7 +19,7 @@ limitations under the License.
 from __future__ import division
 import numpy as np
 from keras.models import Model
-from keras.layers import Input, Lambda, Activation, Conv2D, MaxPooling2D, ZeroPadding2D, Reshape, Concatenate, Flatten, Dense
+from keras.layers import Input, Lambda, Activation, Conv2D,Conv1D, MaxPooling2D, ZeroPadding2D, Reshape, Concatenate, Flatten, Dense, BatchNormalization,Dropout
 from keras.regularizers import l2
 import keras.backend as K
 
@@ -581,12 +581,15 @@ def ssd_300(image_size,
         return model
 
     def proj_net(inputt,branch):
-        mbox_proj = Conv2D(n_boxes*4, (3, 3), padding='same', kernel_initializer='he_normal', kernel_regularizer=l2(l2_reg))(inputt)
+        inputt = tf.keras.backend.expand_dims(inputt,axis=-1)
+        mbox_proj = Dense(16, kernel_initializer='normal', activation='relu')(inputt)
         mbox_proj = Dense(4, kernel_initializer='normal', activation='relu')(mbox_proj)
         return mbox_proj
 
     def proj_net1(inputt,branch):
-        mbox_proj = Conv2D(n_boxes*4, (3, 3), padding='same', kernel_initializer='he_normal', kernel_regularizer=l2(l2_reg))(inputt)
+        # inputt = tf.keras.backend.expand_dims(inputt,axis=-1)
+        # mbox_proj = Conv2D(128, (3, 3), padding='same', kernel_initializer='he_normal', kernel_regularizer=l2(l2_reg))(inputt)
+        mbox_proj = Dense(16, kernel_initializer='normal', activation='relu')(inputt)
         mbox_proj = Dense(4, kernel_initializer='normal', activation='relu')(mbox_proj)
         return mbox_proj
 
@@ -601,7 +604,7 @@ def ssd_300(image_size,
 
 
     def geo_regression(coords, branch):
-        geo = Dense(16, kernel_initializer='normal', activation='relu')(geo)
+        geo = Dense(16, kernel_initializer='normal', activation='relu')(coords)
         geo = Dense(8, kernel_initializer='normal', activation='relu')(geo)
         geo = Dense(2, kernel_initializer='normal', activation='relu', name="geo_"+branch)(geo)
         return geo
@@ -642,8 +645,8 @@ def ssd_300(image_size,
 
     mbox_proj_1 = proj_net(mbox_proj[:,:,:-2],"_1")
     mbox_proj_2 = proj_net(mbox_proj_2[:,:,:-2],"_2")
-    coord_1 = Concatenate(axis=2, name='coords_1')(mbox_proj[:,:,-2:])
-    coord_2 = Concatenate(axis=2, name='coords_2')(mbox_proj_2[:,:,-2:])
+    coord_1 = mbox_proj[:,:,-2:]
+    coord_2 = mbox_proj_2[:,:,-2:]
 
     dist = distance_regression(mbox_conf,"_1")
     dist_2 = distance_regression(mbox_conf_2,"_2")
@@ -651,13 +654,13 @@ def ssd_300(image_size,
     geo_2 = geo_regression(coord_2,"_2")
 
     empty_1 = Lambda(zeroer)(dist)
+    print(mbox_conf_softmax, mbox_loc, mbox_priorbox,empty_1,dist,geo)
+    predictions = Concatenate(axis=2, name='predictions_1')([mbox_conf_softmax, mbox_loc, mbox_priorbox,empty_1,dist,geo])
+    predictions_2 = Concatenate(axis=2, name='predictions_2')([mbox_conf_softmax_2, mbox_loc_2, mbox_priorbox_2,empty_1,dist_2,geo_2])
 
-    predictions = Concatenate(axis=2, name='predictions_1')([mbox_conf_softmax, mbox_loc, mbox_priorbox,empty_1,dist.get_layer(name="dist__1").output,geo.get_layer(name="geo__1").output])
-    predictions_2 = Concatenate(axis=2, name='predictions_2')([mbox_conf_softmax_2, mbox_loc_2, mbox_priorbox_2,empty_1,dist_2.get_layer(name="dist__2").output,geo_2.get_layer(name="geo__2").output])
 
-
-    predictions_proj = Concatenate(axis=2, name='predictions_1_proj')([predictions, mbox_conf_softmax, mbox_proj_1, mbox_priorbox,empty_1,dist_2.get_layer(name="dist__2").output,geo_2.get_layer(name="geo__2").output])
-    predictions_proj_2 = Concatenate(axis=2, name='predictions_2_proj')([predictions_2, mbox_conf_softmax_2, mbox_proj_2, mbox_priorbox,empty_1,dist.get_layer(name="dist__1").output,geo.get_layer(name="geo__1").output])
+    predictions_proj = Concatenate(axis=2, name='predictions_1_proj')([predictions, mbox_conf_softmax, mbox_proj_1, mbox_priorbox,empty_1,dist_2,geo_2])
+    predictions_proj_2 = Concatenate(axis=2, name='predictions_2_proj')([predictions_2, mbox_conf_softmax_2, mbox_proj_2, mbox_priorbox,empty_1,dist,geo])
 
     if mode == 'training':
 
