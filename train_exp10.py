@@ -120,13 +120,13 @@ val_dataset_1 = DataGenerator(load_images_into_memory=False, hdf5_dataset_path=N
 VOC_2007_images_dir      = '../datasets/Images/'
 VOC_2007_annotations_dir      = '../datasets/VOC/Pasadena/Annotations_Multi/'
 
-VOC_2007_trainval_image_set_filename = '../datasets/VOC/Pasadena/ImageSets/Main/reid_neu/train_few.txt'
-VOC_2007_val_image_set_filename      = '../datasets/VOC/Pasadena/ImageSets/Main/reid_neu/val_few.txt'
-VOC_2007_test_image_set_filename     = '../datasets/VOC/Pasadena/ImageSets/Main/reid_neu/test_few.txt'
+# VOC_2007_trainval_image_set_filename = '../datasets/VOC/Pasadena/ImageSets/Main/reid_neu/train_few.txt'
+# VOC_2007_val_image_set_filename      = '../datasets/VOC/Pasadena/ImageSets/Main/reid_neu/val_few.txt'
+# VOC_2007_test_image_set_filename     = '../datasets/VOC/Pasadena/ImageSets/Main/reid_neu/test_few.txt'
 
-# VOC_2007_trainval_image_set_filename = '../datasets/VOC/Pasadena/ImageSets/Main/reid_neu/train.txt'
-# VOC_2007_val_image_set_filename      = '../datasets/VOC/Pasadena/ImageSets/Main/reid_neu/val.txt'
-# VOC_2007_test_image_set_filename     = '../datasets/VOC/Pasadena/ImageSets/Main/reid_neu/test.txt'
+VOC_2007_trainval_image_set_filename = '../datasets/VOC/Pasadena/ImageSets/Main/reid_neu/train.txt'
+VOC_2007_val_image_set_filename      = '../datasets/VOC/Pasadena/ImageSets/Main/reid_neu/val.txt'
+VOC_2007_test_image_set_filename     = '../datasets/VOC/Pasadena/ImageSets/Main/reid_neu/test.txt'
 
 
 classes = ['background',
