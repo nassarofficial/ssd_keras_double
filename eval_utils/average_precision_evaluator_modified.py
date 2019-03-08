@@ -380,7 +380,7 @@ class Evaluator:
             y_pred_1_on_2 = y_predd[:,:,6:12]
             y_pred_2 = y_predd[:,:,12:18]
             y_pred_2_on_1 = y_predd[:,:,18:]
-            y_pred = y_pred_1
+            y_pred = y_pred_1_on_2
 
             y_pred_filtered = []
             for i in range(len(y_pred)):
@@ -635,7 +635,7 @@ class Evaluator:
                 gt = gt.astype(int)
                 # print("gt: ",gt[:,[xmin_gt, ymin_gt, xmax_gt, ymax_gt]])
                 # print("pred_box: ",pred_box)
-                print("-------------------------------------------------------------------")
+                # print("-------------------------------------------------------------------")
                 # Compute the IoU of this prediction with all ground truth boxes of the same class.
                 overlaps = iou(boxes1=gt[:,[xmin_gt, ymin_gt, xmax_gt, ymax_gt]],
                                boxes2=pred_box,
@@ -653,7 +653,7 @@ class Evaluator:
                     # False positive, IoU threshold violated:
                     # Those predictions whose matched overlap is below the threshold become
                     # false positives.
-                    print("IOU Issues")
+                    # print("IOU Issues")
                     false_pos[i] = 1
                 else:
                     if not (ignore_neutral_boxes and eval_neutral_available) or (eval_neutral[gt_match_index] == False):
@@ -674,7 +674,7 @@ class Evaluator:
                             true_pos[i] = 1
                             gt_matched[image_id][gt_match_index] = True
                         else:
-                            print("Duplication Issues")
+                            # print("Duplication Issues")
                             # False positive, duplicate detection:
                             # If the matched ground truth box for this prediction has already been matched
                             # to a different prediction previously, it is a duplicate detection for an
