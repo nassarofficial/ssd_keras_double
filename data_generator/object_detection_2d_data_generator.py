@@ -399,10 +399,11 @@ class DataGenerator:
                     pano_lat = float(soup.panocoords.text.split(",")[0])
                     pano_lng = float(soup.panocoords.text.split(",")[1])
                     yaw = float(soup.yaw.text)
-                    lat_ = float(IDs[1].split(",")[0])
-                    lng_ = float(IDs[1].split(",")[1])                                     
+                    lat_ = float(IDs[1].split(",")[1])
+                    lng_ = float(IDs[1].split(",")[0])   
+                    print("f",pano_lat,pano_lng,lat_,lng_)                                  
                     distance = haversine_distance(pano_lat,pano_lng,lat_,lng_)
-                    print("f",distance)
+
                     # Parse the data for each object.
                     for obj in objects:
                         class_name = obj.find('name', recursive=False).text
