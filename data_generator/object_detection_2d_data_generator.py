@@ -376,7 +376,6 @@ class DataGenerator:
                     with open(os.path.join(annotations_dir, image_id[1] + '.xml')) as f:
                         soup1 = BeautifulSoup(f, 'xml')
 
-
                     IDs = []
 
                     for tar in soup.find_all('object'):
@@ -399,9 +398,8 @@ class DataGenerator:
                     pano_lat = float(soup.panocoords.text.split(",")[0])
                     pano_lng = float(soup.panocoords.text.split(",")[1])
                     yaw = float(soup.yaw.text)
-                    lat_ = float(IDs[1].split(",")[1])
-                    lng_ = float(IDs[1].split(",")[0])   
-                    print("f",pano_lat,pano_lng,lat_,lng_)                                  
+                    lat_ = float(IDs[1].split(",")[0])
+                    lng_ = float(IDs[1].split(",")[1])                                     
                     distance = haversine_distance(pano_lat,pano_lng,lat_,lng_)
 
                     # Parse the data for each object.
@@ -518,7 +516,8 @@ class DataGenerator:
                                      'pano_lat':pano_lat,
                                      'pano_lng':pano_lng,
                                      'yaw':yaw
-                                    }                                 
+                                    }
+
                         box = []
                         for item in self.labels_output_format:
                             box.append(item_dict[item])
@@ -1120,8 +1119,8 @@ class DataGenerator:
             #########################################################################################
             # Compose the output.
             # #########################################################################################
-            np.save('outputs/predder.npy', [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded_1,"predictions_2": batch_y_encoded_2,"predictions_1_proj": np.concatenate([batch_y_encoded_1,batch_y_encoded_2],2),"predictions_2_proj": np.concatenate([batch_y_encoded_2,batch_y_encoded_1],2)}])
-            yield [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded_1,"predictions_2": batch_y_encoded_2,"predictions_1_proj": np.concatenate([batch_y_encoded_1,batch_y_encoded_2],2),"predictions_2_proj": np.concatenate([batch_y_encoded_2,batch_y_encoded_1],2)}]
+            np.save('outputs/predder.npy', [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded_1,"predictions_2": batch_y_encoded_2,"predictions_1_to_2": np.concatenate([batch_y_encoded_1,batch_y_encoded_2],2),"predictions_2_to_1": np.concatenate([batch_y_encoded_2,batch_y_encoded_1],2)}])
+            yield [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded_1,"predictions_2": batch_y_encoded_2,"predictions_1_to_2": np.concatenate([batch_y_encoded_1,batch_y_encoded_2],2),"predictions_2_to_1": np.concatenate([batch_y_encoded_2,batch_y_encoded_1],2)}]
 
             # yield [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded_1,"predictions_2": batch_y_encoded_2}]
 

@@ -131,6 +131,7 @@ class SSDLoss_proj:
         '''
         y_true_1 = y_true[:,:,:18]
         y_pred_1 = y_pred[:,:,:18]
+
         y_true_2 = y_true[:,:,18:]
         y_pred_2 = y_pred[:,:,18:]
 
@@ -180,22 +181,20 @@ class SSDLoss_proj:
                     gt = y_true_2_equal
             return pred, gt
 
-        y_pred, y_true = matcher(y_true_1,y_pred_1,y_true_2,y_pred_2,1)
+        y_pred_out, y_true_out = matcher(y_true_1,y_pred_1,y_true_2,y_pred_2,1)
 
 
         # print("y_true: ", y_true)
         # print("y_pred: ", y_pred)      
 
-        y_pred1 = y_pred_1
-        t_true1 = y_true_1
 
-        batch_size = tf.shape(y_pred1)[0] # Output dtype: tf.int32
-        n_boxes = tf.shape(t_true1)[1] # Output dtype: tf.int32, note that `n_boxes` in this context denotes the total number of boxes per image, not the number of boxes per cell.
+        batch_size = tf.shape(y_pred_out)[0] # Output dtype: tf.int32
+        n_boxes = tf.shape(y_true_out)[1] # Output dtype: tf.int32, note that `n_boxes` in this context denotes the total number of boxes per image, not the number of boxes per cell.
 
         # 1: Compute the losses for class and box predictions for every box.
 
-        classification_loss = tf.to_float(self.log_loss(t_true1[:,:,:-16], y_pred1[:,:,:-16])) # Output shape: (batch_size, n_boxes)
-        localization_loss = tf.to_float(self.smooth_L1_loss(t_true1[:,:,-16:-12], y_pred1[:,:,-16:-12])) # Output shape: (batch_size, n_boxes)
+        classification_loss = tf.to_float(self.log_loss(y_true_out[:,:,:-16], y_pred_out[:,:,:-16])) # Output shape: (batch_size, n_boxes)
+        localization_loss = tf.to_float(self.smooth_L1_loss(y_true_out[:,:,-16:-12], y_pred_out[:,:,-16:-12])) # Output shape: (batch_size, n_boxes)
         # print("classification_loss: ", classification_loss)
         # return localization_loss
         
@@ -203,8 +202,8 @@ class SSDLoss_proj:
         # 2: Compute the classification losses for the positive and negative targets.
 
         # Create masks for the positive and negative ground truth classes.
-        negatives = t_true1[:,:,0] # Tensor of shape (batch_size, n_boxes)
-        positives = tf.to_float(tf.reduce_max(t_true1[:,:,1:-16], axis=-1)) # Tensor of shape (batch_size, n_boxes)
+        negatives = y_true_out[:,:,0] # Tensor of shape (batch_size, n_boxes)
+        positives = tf.to_float(tf.reduce_max(y_true_out[:,:,1:-16], axis=-1)) # Tensor of shape (batch_size, n_boxes)
         # # Count the number of positive boxes (classes 1 to n) in y_true across the whole batch.
         n_positive = tf.reduce_sum(positives)
 

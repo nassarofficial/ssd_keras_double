@@ -432,7 +432,7 @@ def ssd_300(image_size,
     ############################################################################
 
 
-    def ssdmod(x,geo_1,geo_2,suf):
+    def ssdmod(x,suf):
         x1= Lambda(identity_layer, output_shape=(img_height, img_width, img_channels), name='identity_layer'+'_'+suf)(x)
         if not (subtract_mean is None):
             x1= Lambda(input_mean_normalization, output_shape=(img_height, img_width, img_channels), name='input_mean_normalization'+'_'+suf)(x1)
@@ -575,7 +575,7 @@ def ssd_300(image_size,
                                                                    conv9_2_mbox_priorbox_reshape])
 
         ### Concatenate the predictions from the different layers
-        model = Model(input=[x,geo_1,geo_2],output=[mbox_conf, mbox_loc, mbox_priorbox])
+        model = Model(input=[x],output=[mbox_conf, mbox_loc, mbox_priorbox])
 
         return model
 
@@ -600,10 +600,10 @@ def ssd_300(image_size,
     Z_geo = Input(shape=(17292,3))
 
 
-    ssd1 = ssdmod(X, X_geo, Z_geo, "_1")
+    ssd1 = ssdmod(X, "_1")
     ssd1.load_weights(weights_path, by_name=True)
 
-    ssd2 = ssdmod(Z, Z_geo, X_geo, "_2")
+    ssd2 = ssdmod(Z, "_2")
     ssd2.load_weights(weights_path, by_name=True)
 
 
@@ -623,11 +623,11 @@ def ssd_300(image_size,
     mbox_loc_tot = Concatenate(axis=2, name='predictions_tot__1')([mbox_conf, mbox_loc, mbox_priorbox, X_geo, Z_geo])
     mbox_loc_tot_2 = Concatenate(axis=2, name='predictions_tot__2')([mbox_conf_2, mbox_loc_2, mbox_priorbox_2, Z_geo, X_geo])
 
-    mbox_proj = Lambda(projector, name='predictions'+'__1_mbox_proj')(mbox_loc_tot)
-    mbox_proj_2 = Lambda(projector, name='predictions'+'__2_mbox_proj')(mbox_loc_tot_2)
+    mbox_proj1 = Lambda(projector, name='predictions'+'__1_mbox_proj')(mbox_loc_tot)
+    mbox_proj2 = Lambda(projector, name='predictions'+'__2_mbox_proj')(mbox_loc_tot_2)
 
-    mbox_proj_1 = proj_net(mbox_proj,"_1")
-    mbox_proj_2 = proj_net1(mbox_proj_2,"_2")
+    mbox_proj_1 = proj_net(mbox_proj1,"_1")
+    mbox_proj_2 = proj_net1(mbox_proj2,"_2")
 
     empty_2 = Lambda(zeroer)(mbox_conf_softmax)
     empty_4 = Lambda(zeroer)(mbox_loc)
@@ -635,18 +635,17 @@ def ssd_300(image_size,
     predictions = Concatenate(axis=2, name='predictions_1')([mbox_conf_softmax, mbox_loc, mbox_priorbox,empty_4])
     predictions_2 = Concatenate(axis=2, name='predictions_2')([mbox_conf_softmax_2, mbox_loc_2, mbox_priorbox_2,empty_4])
 
-
-    predictions_proj = Concatenate(axis=2, name='predictions_1_proj')([predictions, mbox_conf_softmax, mbox_proj_1, mbox_priorbox,empty_4])
-    predictions_proj_2 = Concatenate(axis=2, name='predictions_2_proj')([predictions_2, mbox_conf_softmax_2, mbox_proj_2, mbox_priorbox,empty_4])
+    predictions_1_to_2 = Concatenate(axis=2, name='predictions_1_to_2')([predictions, mbox_conf_softmax, mbox_proj_1, mbox_priorbox_2,empty_4])
+    predictions_2_to_1 = Concatenate(axis=2, name='predictions_2_to_1')([predictions_2, mbox_conf_softmax_2, mbox_proj_2, mbox_priorbox,empty_4])
 
     if mode == 'training':
 
-        model = Model(inputs=[X, Z, X_geo, Z_geo], outputs=[predictions,predictions_2,predictions_proj,predictions_proj_2])
+        model = Model(inputs=[X, Z, X_geo, Z_geo], outputs=[predictions,predictions_2,predictions_1_to_2,predictions_2_to_1])
 
 
     elif mode == 'inference':
 
-        predictions = Concatenate(axis=2, name='predictions_inference')([predictions,predictions_2,predictions_proj,predictions_proj_2])
+        predictions = Concatenate(axis=2, name='predictions_inference')([predictions,predictions_2,predictions_1_to_2,predictions_2_to_1])
 
         decoded_predictions = DecodeDetections(confidence_thresh=confidence_thresh,
                                                iou_threshold=iou_threshold,

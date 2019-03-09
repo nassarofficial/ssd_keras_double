@@ -114,13 +114,16 @@ class DecodeDetections_Modified(Layer):
             the coordinates for each predicted box in the format
             `[class_id, confidence, xmin, ymin, xmax, ymax]`.
         '''
-        def predder(y_pred):
+        def predder(y_pred, state):
             #####################################################################################
             # 1. Convert the box coordinates from predicted anchor box offsets to predicted
             #    absolute coordinates
             #####################################################################################
             # Convert anchor box offsets to image offsets.
-            y_pred = y_pred[:,:,:14]
+            if state == "proj":
+                y_pred = y_pred[:,:,:14]
+            else:
+                y_pred = y_pred[:,:,18:32]
             cx = y_pred[...,-12] * y_pred[...,-4] * y_pred[...,-6] + y_pred[...,-8] # cx = cx_pred * cx_variance * w_anchor + cx_anchor
             cy = y_pred[...,-11] * y_pred[...,-3] * y_pred[...,-5] + y_pred[...,-7] # cy = cy_pred * cy_variance * h_anchor + cy_anchor
             w = tf.exp(y_pred[...,-10] * y_pred[...,-2]) * y_pred[...,-6] # w = exp(w_pred * variance_w) * w_anchor
@@ -265,14 +268,14 @@ class DecodeDetections_Modified(Layer):
 
         y_pred_1 = y_pred_total[:,:,:18]
         y_pred_2 = y_pred_total[:,:,18:36]
-        y_pred_1_proj = y_pred_total[:,:,36:72]
-        y_pred_2_proj = y_pred_total[:,:,72:108]
+        y_pred_1_to_2 = y_pred_total[:,:,36:72]
+        y_pred_2_to_1 = y_pred_total[:,:,72:108]
 
-        out_p1 = predder(y_pred_1)
-        out_p2 = predder(y_pred_2)
-        out_p1_p = predder(y_pred_1_proj)
-        out_p2_p = predder(y_pred_2_proj)
-        print(out_p1)
+        out_p1 = predder(y_pred_1,"norm")
+        out_p2 = predder(y_pred_2,"norm")
+        out_p1_p = predder(y_pred_1_proj,"proj")
+        out_p2_p = predder(y_pred_2_proj,"proj")
+
         return out_p1
 
     def compute_output_shape(self, input_shape):
