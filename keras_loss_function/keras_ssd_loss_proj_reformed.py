@@ -137,8 +137,8 @@ class SSDLoss_proj:
         def gt_rem(pred, gt):
             # predval = tf.shape(pred)
             # gtval = tf.shape(gt)
-            # val = tf.subtract(tf.shape(pred)[1],tf.shape(gt)[1], name="gt_rem_sub")
-            gt = tf.slice(gt, [0, 0, 0], [1, tf.shape(pred)[0], 18],name="rem_slice")
+            val = tf.subtract(tf.shape(pred)[1],tf.shape(gt)[1], name="gt_rem_sub")
+            gt = tf.slice(gt, [0, 0, 0], [1, val, 18],name="rem_slice")
             return gt
 
         def gt_add(pred, gt):
@@ -189,7 +189,7 @@ class SSDLoss_proj:
                 y_true_2_new = tf.gather_nd(y_true_2[i,:,:],filterer_2, name="y_true_2_new")
                 y_true_2_new = tf.expand_dims(y_true_2_new, 0, name="y_true_2_new1")
                 
-                iou_out = tf.py_func(iou, [y_pred_1[i,:,-16:-12],y_true_new[i,:,-16:-12]], tf.float64, name="iou_out")
+                iou_out = tf.py_func(iou, [y_pred_1[i,:,-16:-12], y_true_new[i,:,-16:-12]], tf.float64, name="iou_out")
                 bipartite_matches = tf.py_func(match_bipartite_greedy, [iou_out], tf.int64, name="bipartite_matches")
                 out = tf.gather(y_pred_2[i,:,:], [bipartite_matches], axis=0, name="out")
                 
@@ -206,7 +206,7 @@ class SSDLoss_proj:
                     gt = y_true_2_equal    
             return pred, gt
 
-        y_pred_out, y_true_out = matcher(y_true_1,y_pred_1,y_true_2,y_pred_2,1)
+        y_pred_out, y_true_out = matcher(y_true_1,y_pred_1,y_true_2,y_pred_2, 4)
 
         batch_size = tf.shape(y_pred_out)[0] # Output dtype: tf.int32
         n_boxes = tf.shape(y_true_out)[1] # Output dtype: tf.int32, note that `n_boxes` in this context denotes the total number of boxes per image, not the number of boxes per cell.
