@@ -107,12 +107,11 @@ ssd_loss4 = SSDLoss_proj(neg_pos_ratio=3, alpha=1.0)
 
 losses = {
     "predictions_1": ssd_loss1.compute_loss,
-    "predictions_2": ssd_loss2.compute_loss,
     "predictions_1_to_2": ssd_loss3.compute_loss,
 }
 
 # lossWeights = {"predictions_1": 1.0,"predictions_2": 1.0,"predictions_1_to_2": 1.0,"predictions_2_to_1": 1.0}
-lossWeights = {"predictions_1": 1.0,"predictions_2": 1.0,"predictions_1_to_2": 1.0}
+lossWeights = {"predictions_1": 1.0,"predictions_1_to_2": 1.0}
 
 # MetricstDict = {"predictions_1": Accuracy,"predictions_2": Accuracy, "predictions_1_proj": Accuracy_Proj,"predictions_2_proj": Accuracy_Proj}
 # lossWeights = {"predictions_1": 1.0,"predictions_2": 1.0}
