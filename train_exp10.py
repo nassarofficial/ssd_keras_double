@@ -10,9 +10,10 @@ from matplotlib import pyplot as plt
 from keras.preprocessing import image
 from imageio import imread
 
-from models.keras_ssd300 import ssd_300
+from models.keras_ssd300_mod import ssd_300
 from keras_loss_function.keras_ssd_loss_mod import SSDLoss
-from keras_loss_function.keras_ssd_loss_proj_reformed import SSDLoss_proj
+from keras_loss_function.keras_ssd_loss_proj import SSDLoss_proj
+# from keras_loss_function.keras_ssd_loss_proj_reformed import SSDLoss_proj
 
 from keras_layers.keras_layer_AnchorBoxes import AnchorBoxes
 from keras_layers.keras_layer_DecodeDetections import DecodeDetections
@@ -101,11 +102,12 @@ ssd_loss4 = SSDLoss_proj(neg_pos_ratio=3, alpha=1.0)
 losses = {
     "predictions_1": ssd_loss1.compute_loss,
     "predictions_2": ssd_loss2.compute_loss,
-    "predictions_1_proj": ssd_loss3.compute_loss,
-    "predictions_2_proj": ssd_loss4.compute_loss
+    "predictions_1_to_2": ssd_loss3.compute_loss,
+    "predictions_2_to_1": ssd_loss4.compute_loss
 
 }
-lossWeights = {"predictions_1": 1.0,"predictions_2": 1.0,"predictions_1_proj": 1.0,"predictions_2_proj": 1.0}
+lossWeights = {"predictions_1": 1.0,"predictions_2": 1.0,"predictions_1_to_2": 1.0,"predictions_2_to_1": 1.0}
+
 MetricstDict = {"predictions_1": Accuracy,"predictions_2": Accuracy}
 
 model.compile(optimizer=adam, loss=losses, loss_weights=lossWeights, metrics=MetricstDict) 
@@ -223,7 +225,7 @@ final_epoch     = 500
 steps_per_epoch = 1000
 
 
-model_checkpoint = ModelCheckpoint(filepath='checkpoints/train_10_double_ssd300_pascal_07+12_epoch-{epoch:02d}_loss-{loss:.4f}_val_loss-{val_loss:.4f}.h5',
+model_checkpoint = ModelCheckpoint(filepath='checkpoints/exp_10_epoch-{epoch:02d}_loss-{loss:.4f}_val_loss-{val_loss:.4f}.h5',
                                    monitor='val_loss',
                                    verbose=1,
                                    save_best_only=True,
