@@ -137,8 +137,8 @@ class SSDLoss_proj:
         def gt_rem(pred, gt):
             # predval = tf.shape(pred)
             # gtval = tf.shape(gt)
-            val = tf.subtract(tf.shape(pred)[1],tf.shape(gt)[1], name="gt_rem_sub")
-            gt = tf.slice(gt, [0, 0, 0], [1, val, 18],name="rem_slice")
+            # val = tf.subtract(tf.shape(pred)[1],tf.shape(gt)[1], name="gt_rem_sub")
+            gt = tf.slice(gt, [0, 0, 0], [1, 5, 18],name="rem_slice")
             return gt
 
         def gt_add(pred, gt):
