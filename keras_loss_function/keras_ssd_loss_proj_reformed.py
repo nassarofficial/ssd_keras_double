@@ -138,7 +138,7 @@ class SSDLoss_proj:
             # predval = tf.shape(pred)
             # gtval = tf.shape(gt)
             # val = tf.subtract(tf.shape(pred)[1],tf.shape(gt)[1], name="gt_rem_sub")
-            gt = tf.slice(gt, [0, 0, 0], [1, 5, 18],name="rem_slice")
+            gt = tf.slice(gt, [0, 0, 0], [1, tf.shape(pred)[1], 18],name="rem_slice")
             return gt
 
         def gt_add(pred, gt):
@@ -177,8 +177,12 @@ class SSDLoss_proj:
                 set1 = tf.cast(y_true_new[i,:,-4],dtype=tf.int32, name="set1")
                 set2 = tf.cast(y_true_2_new[i,:,-4],dtype=tf.int32, name="set2")
                 
-                id_pick = tf.sets.set_intersection(set1[None,:], set2[None, :])
-                id_pick = tf.cast(id_pick.values[0],dtype=tf.float32)
+                set11 = tf.identity(set1[None,:], name="set11")
+                set22 = tf.identity(set2[None,:], name="set22")
+
+                id_pick = tf.sets.set_intersection(set11, set22)
+
+                id_pick = tf.cast(id_pick.values[0],dtype=tf.float32, name="picker")
                             
                 filterer = tf.where(tf.equal(y_true_1[i,:,-4],id_pick), name="filterer1")
                 filterer_2 = tf.where(tf.equal(y_true_2[i,:,-4],id_pick), name="filterer_21")
@@ -206,7 +210,7 @@ class SSDLoss_proj:
                     gt = y_true_2_equal    
             return pred, gt
 
-        y_pred_out, y_true_out = matcher(y_true_1,y_pred_1,y_true_2,y_pred_2, 4)
+        y_pred_out, y_true_out = matcher(y_true_1,y_pred_1,y_true_2,y_pred_2, 1)
 
         batch_size = tf.shape(y_pred_out)[0] # Output dtype: tf.int32
         n_boxes = tf.shape(y_true_out)[1] # Output dtype: tf.int32, note that `n_boxes` in this context denotes the total number of boxes per image, not the number of boxes per cell.

@@ -12,3 +12,5 @@ Graph/events\.out\.tfevents\.1549461598\.pc-mna-175
 Graph/
 
 ssd300_pascal_07\+12_training_log\.csv
+
+outputs/
