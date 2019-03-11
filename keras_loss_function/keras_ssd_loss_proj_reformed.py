@@ -135,21 +135,28 @@ class SSDLoss_proj:
         y_pred_2 = y_pred[:,:,18:]
 
         def gt_rem(pred, gt):
-            val = tf.subtract(tf.shape(pred)[1], tf.shape(gt)[1],name="gt_rem_subtract")
-            gt = tf.slice(gt, [0, 0, 0], [1, tf.shape(pred)[1], 18],name="rem_slice")
+            # predval = tf.shape(pred)
+            # gtval = tf.shape(gt)
+            val = tf.subtract(tf.shape(pred)[1],tf.shape(gt)[1])
+            gt = tf.slice(gt, [0, 0, 0], [1, tf.shape(pred)[0], 18],name="rem_slice")
             return gt
 
         def gt_add(pred, gt):
-            #add to gt
-            val = tf.subtract(tf.shape(pred)[1], tf.shape(gt)[1],name="gt_add_subtract")
-            ext = tf.slice(gt, [0, 0, 0], [1, val, 18], name="add_slice")
+            a = tf.shape(pred)[1]
+            b = tf.shape(gt)[1]
+            
+            val = tf.shape(pred)-tf.shape(gt)
+            val = tf.cast(val[1], tf.int32)
+            ext = tf.slice(gt, [0, 0, 0], [1, 1, 18], name="add_slice")
+            multiply = [1,val,1]
+            ext = tf.tile(ext, multiply)
             gt = K.concatenate([ext,gt], axis=1)
             return gt
 
         def equalalready(gt, pred): return pred
 
         def make_equal(pred, gt):
-            equal_tensor = tf.cond(tf.shape(pred)[1] < tf.shape(gt)[1], lambda: gt_rem(pred, gt), lambda: gt_add(pred, gt), name="make_equal_cond")
+            equal_tensor = tf.cond(tf.less(tf.shape(pred)[1],tf.shape(gt)[1]), lambda: gt_rem(pred, gt), lambda: gt_add(pred, gt), name="make_equal_cond")
             return equal_tensor
 
 

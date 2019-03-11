@@ -380,7 +380,7 @@ class Evaluator:
             y_pred_1_on_2 = y_predd[:,:,6:12]
             y_pred_2 = y_predd[:,:,12:18]
             y_pred_2_on_1 = y_predd[:,:,18:]
-            y_pred = y_pred_1_on_2
+            y_pred = y_pred_2_on_1
 
             y_pred_filtered = []
             for i in range(len(y_pred)):
@@ -391,7 +391,7 @@ class Evaluator:
 
             # Iterate over all batch items.
             for k, batch_item in enumerate(y_pred):
-                image_id = batch_image_ids[k][0]
+                image_id = batch_image_ids[k][1]
 
                 for box in batch_item:
                     class_id = int(box[class_id_pred])
@@ -435,14 +435,14 @@ class Evaluator:
             entire dataset.
         '''
 
-        if self.data_generator.labels is None:
+        if self.data_generator.labels1 is None:
             raise ValueError("Computing the number of ground truth boxes per class not possible, no ground truth given.")
 
         num_gt_per_class = np.zeros(shape=(self.n_classes+1), dtype=np.int)
 
         class_id_index = self.gt_format['class_id']
 
-        ground_truth = self.data_generator.labels
+        ground_truth = self.data_generator.labels1
 
         if verbose:
             print('Computing the number of positive ground truth boxes per class.')
@@ -468,9 +468,9 @@ class Evaluator:
             # print(boxes.shape[0])
             for j in range(boxes.shape[0]):
                 # print("j: ",j)
-                if ignore_neutral_boxes and not (self.data_generator.eval_neutral is None):
+                if ignore_neutral_boxes and not (self.data_generator.eval_neutral1 is None):
                     # print("enter")
-                    if not self.data_generator.eval_neutral[i][j]:
+                    if not self.data_generator.eval_neutral1[i][j]:
                         # If this box is not supposed to be evaluation-neutral,
                         # increment the counter for the respective class ID.
                         class_id = boxes[j, class_id_index]
@@ -543,12 +543,12 @@ class Evaluator:
         # Convert the ground truth to a more efficient format for what we need
         # to do, which is access ground truth by image ID repeatedly.
         ground_truth = {}
-        eval_neutral_available = not (self.data_generator.eval_neutral is None) # Whether or not we have annotations to decide whether ground truth boxes should be neutral or not.
+        eval_neutral_available = not (self.data_generator.eval_neutral1 is None) # Whether or not we have annotations to decide whether ground truth boxes should be neutral or not.
         for i in range(len(self.data_generator.image_ids)):
-            image_id = str(self.data_generator.image_ids[i][0])
-            labels = self.data_generator.labels[i]
+            image_id = str(self.data_generator.image_ids[i][1])
+            labels = self.data_generator.labels1[i]
             if ignore_neutral_boxes and eval_neutral_available:
-                ground_truth[image_id] = (np.asarray(labels), np.asarray(self.data_generator.eval_neutral[i]))
+                ground_truth[image_id] = (np.asarray(labels), np.asarray(self.data_generator.eval_neutral1[i]))
             else:
                 ground_truth[image_id] = np.asarray(labels)
 
