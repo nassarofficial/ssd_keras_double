@@ -137,19 +137,18 @@ class SSDLoss_proj:
         def gt_rem(pred, gt):
             # predval = tf.shape(pred)
             # gtval = tf.shape(gt)
-            val = tf.subtract(tf.shape(pred)[1],tf.shape(gt)[1])
+            # val = tf.subtract(tf.shape(pred)[1],tf.shape(gt)[1], name="gt_rem_sub")
             gt = tf.slice(gt, [0, 0, 0], [1, tf.shape(pred)[0], 18],name="rem_slice")
             return gt
 
         def gt_add(pred, gt):
             a = tf.shape(pred)[1]
             b = tf.shape(gt)[1]
-            
-            val = tf.shape(pred)-tf.shape(gt)
-            val = tf.cast(val[1], tf.int32)
+            val = tf.subtract(tf.shape(pred),tf.shape(gt), name="gt_add_sub")
+            val = tf.cast(val[1], tf.int32, name="gt_add_cast")
             ext = tf.slice(gt, [0, 0, 0], [1, 1, 18], name="add_slice")
             multiply = [1,val,1]
-            ext = tf.tile(ext, multiply)
+            ext = tf.tile(ext, multiply, name="tiler")
             gt = K.concatenate([ext,gt], axis=1)
             return gt
 
@@ -166,31 +165,31 @@ class SSDLoss_proj:
 
             for i in range(bsz):
                 
-                filterer = tf.where(tf.not_equal(y_true_1[i,:,-4],99))
-                filterer_2 = tf.where(tf.not_equal(y_true_2[i,:,-4],99))
+                filterer = tf.where(tf.not_equal(y_true_1[i,:,-4],99), name="filterer")
+                filterer_2 = tf.where(tf.not_equal(y_true_2[i,:,-4],99), name="filterer_2")
 
-                y_true_new = tf.gather_nd(y_true_1[i,:,:],filterer)            
-                y_true_new = tf.expand_dims(y_true_new, 0)
+                y_true_new = tf.gather_nd(y_true_1[i,:,:],filterer, name="y_true_new")            
+                y_true_new = tf.expand_dims(y_true_new, 0, name="y_true_new1")
                 
-                y_true_2_new = tf.gather_nd(y_true_2[i,:,:],filterer_2)
-                y_true_2_new = tf.expand_dims(y_true_2_new, 0)
+                y_true_2_new = tf.gather_nd(y_true_2[i,:,:],filterer_2, name="y_true_2_new")
+                y_true_2_new = tf.expand_dims(y_true_2_new, 0, name="y_true_2_new1")
 
-                set1 = tf.cast(y_true_new[i,:,-4],dtype=tf.int32)
-                set2 = tf.cast(y_true_2_new[i,:,-4],dtype=tf.int32)
+                set1 = tf.cast(y_true_new[i,:,-4],dtype=tf.int32, name="set1")
+                set2 = tf.cast(y_true_2_new[i,:,-4],dtype=tf.int32, name="set2")
                 
                 id_pick = tf.sets.set_intersection(set1[None,:], set2[None, :])
                 id_pick = tf.cast(id_pick.values[0],dtype=tf.float32)
                             
-                filterer = tf.where(tf.equal(y_true_1[i,:,-4],id_pick))
-                filterer_2 = tf.where(tf.equal(y_true_2[i,:,-4],id_pick))
+                filterer = tf.where(tf.equal(y_true_1[i,:,-4],id_pick), name="filterer1")
+                filterer_2 = tf.where(tf.equal(y_true_2[i,:,-4],id_pick), name="filterer_21")
 
-                y_true_new = tf.gather_nd(y_true_1[i,:,:],filterer)            
-                y_true_new = tf.expand_dims(y_true_new, 0)
+                y_true_new = tf.gather_nd(y_true_1[i,:,:],filterer, name="y_true_new")            
+                y_true_new = tf.expand_dims(y_true_new, 0, name="y_true_new")
                 
-                y_true_2_new = tf.gather_nd(y_true_2[i,:,:],filterer_2)
-                y_true_2_new = tf.expand_dims(y_true_2_new, 0)
+                y_true_2_new = tf.gather_nd(y_true_2[i,:,:],filterer_2, name="y_true_2_new")
+                y_true_2_new = tf.expand_dims(y_true_2_new, 0, name="y_true_2_new1")
                 
-                iou_out = tf.py_func(iou, [y_pred_1[i,:,-16:-12],tf.convert_to_tensor(y_true_new[i,:,-16:-12])], tf.float64, name="iou_out")
+                iou_out = tf.py_func(iou, [y_pred_1[i,:,-16:-12],y_true_new[i,:,-16:-12]], tf.float64, name="iou_out")
                 bipartite_matches = tf.py_func(match_bipartite_greedy, [iou_out], tf.int64, name="bipartite_matches")
                 out = tf.gather(y_pred_2[i,:,:], [bipartite_matches], axis=0, name="out")
                 
@@ -208,10 +207,6 @@ class SSDLoss_proj:
             return pred, gt
 
         y_pred_out, y_true_out = matcher(y_true_1,y_pred_1,y_true_2,y_pred_2,1)
-
-
-        # print("y_true: ", y_true)
-        # print("y_pred: ", y_pred)      
 
         batch_size = tf.shape(y_pred_out)[0] # Output dtype: tf.int32
         n_boxes = tf.shape(y_true_out)[1] # Output dtype: tf.int32, note that `n_boxes` in this context denotes the total number of boxes per image, not the number of boxes per cell.
