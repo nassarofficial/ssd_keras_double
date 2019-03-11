@@ -135,13 +135,13 @@ VOC_2007_images_dir      = '../datasets/Images/'
 # The directories that contain the annotations.
 VOC_2007_annotations_dir      = '../datasets/VOC/Pasadena/Annotations_Multi/'
 
-# VOC_2007_trainval_image_set_filename = '../datasets/VOC/Pasadena/ImageSets/Main/reid_neu/train.txt'
-# VOC_2007_val_image_set_filename      = '../datasets/VOC/Pasadena/ImageSets/Main/reid_neu/val.txt'
-# VOC_2007_test_image_set_filename     = '../datasets/VOC/Pasadena/ImageSets/Main/reid_neu/test.txt'
+VOC_2007_trainval_image_set_filename = '../datasets/VOC/Pasadena/ImageSets/Main/reid_neu/train.txt'
+VOC_2007_val_image_set_filename      = '../datasets/VOC/Pasadena/ImageSets/Main/reid_neu/val.txt'
+VOC_2007_test_image_set_filename     = '../datasets/VOC/Pasadena/ImageSets/Main/reid_neu/test.txt'
 
-VOC_2007_trainval_image_set_filename = '../datasets/VOC/Pasadena/ImageSets/Main/reid_neu/train_few.txt'
-VOC_2007_val_image_set_filename      = '../datasets/VOC/Pasadena/ImageSets/Main/reid_neu/val_few.txt'
-VOC_2007_test_image_set_filename     = '../datasets/VOC/Pasadena/ImageSets/Main/reid_neu/test_one.txt'
+# VOC_2007_trainval_image_set_filename = '../datasets/VOC/Pasadena/ImageSets/Main/reid_neu/train_few.txt'
+# VOC_2007_val_image_set_filename      = '../datasets/VOC/Pasadena/ImageSets/Main/reid_neu/val_few.txt'
+# VOC_2007_test_image_set_filename     = '../datasets/VOC/Pasadena/ImageSets/Main/reid_neu/test_one.txt'
 
 # The XML parser needs to now what object class names to look for and in which order to map them to integers.
 classes = ['background',
