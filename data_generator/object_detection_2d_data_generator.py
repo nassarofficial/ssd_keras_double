@@ -330,7 +330,9 @@ class DataGenerator:
             a = math.sin(math.radians((lat2-lat1)/2.0))**2 + math.cos(math.radians(lat1))*math.cos(math.radians(lat2))*math.sin(math.radians((lon2-lon1)/2.0))**2
             c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
             return EARTH_RADIUS*c
-
+        def intersection(lst1, lst2): 
+            lst3 = [value for value in lst1 if value in lst2] 
+            return lst3 
         self.images_dirs = images_dirs
         self.annotations_dirs = annotations_dirs
         self.image_set_filenames = image_set_filenames
@@ -376,13 +378,35 @@ class DataGenerator:
                     with open(os.path.join(annotations_dir, image_id[1] + '.xml')) as f:
                         soup1 = BeautifulSoup(f, 'xml')
 
+                    idd = {}
+
                     IDs = []
+                    IDs_2 = []
+                    # for tar in soup.find_all('object'):
+                    #     if tar.find('ID'):
+                    #         IDs.append([tar.ID.text,tar.location.text])
+
+                    # for tar in soup1.find_all('object'):
+                    #     if tar.find('ID'):
+                    #         IDs_2.append([tar.ID.text,tar.location.text])
 
                     for tar in soup.find_all('object'):
                         if tar.find('ID'):
-                            IDs.append([tar.ID.text,tar.location.text])
+                            IDs.append(tar.ID.text)
+                            idd[tar.ID.text] =  tar.location.text
 
+                    for tar in soup1.find_all('object'):
+                        if tar.find('ID'):
+                            IDs_2.append(tar.ID.text)
+                            idd[tar.ID.text] =  tar.location.text
+
+                    IDs = set(IDs)
+                    IDs_2 = set(IDs_2)
+                    IDs = intersection(IDs,IDs_2)
                     IDs = random.choice(IDs)
+
+                    locc = idd[IDs]
+
                     ##############################################################################
                     folder = "Pasadena" # In case we want to return the folder in addition to the image file name. Relevant for determining which dataset an image belongs to.
                     #filename = soup.filename.text
@@ -398,8 +422,8 @@ class DataGenerator:
                     pano_lat = float(soup.panocoords.text.split(",")[0])
                     pano_lng = float(soup.panocoords.text.split(",")[1])
                     yaw = float(soup.yaw.text)
-                    lat_ = float(IDs[1].split(",")[0])
-                    lng_ = float(IDs[1].split(",")[1])                                     
+                    lat_ = float(locc.split(",")[0])
+                    lng_ = float(locc.split(",")[1])                                     
                     distance = haversine_distance(pano_lat,pano_lng,lat_,lng_)
 
                     # Parse the data for each object.
@@ -420,8 +444,8 @@ class DataGenerator:
                         xmax = int(bndbox.xmax.text)
                         ymax = int(bndbox.ymax.text)
                         try:
-                            if int(obj.find('ID', recursive=False).text) == int(IDs[0]):
-                                target_id = int(IDs[0])
+                            if int(obj.find('ID', recursive=False).text) == int(IDs):
+                                target_id = int(IDs)
                             else:
                                 target_id = int(99)
                         except:
@@ -466,8 +490,8 @@ class DataGenerator:
                     pano_lat = float(soup1.panocoords.text.split(",")[0])
                     pano_lng = float(soup1.panocoords.text.split(",")[1])
                     yaw = float(soup1.yaw.text)
-                    lat_ = float(IDs[1].split(",")[0])
-                    lng_ = float(IDs[1].split(",")[1])                                     
+                    lat_ = float(locc.split(",")[0])
+                    lng_ = float(locc.split(",")[1])                                     
                     distance = haversine_distance(pano_lat,pano_lng,lat_,lng_)
 
 
@@ -489,8 +513,8 @@ class DataGenerator:
                         xmax = int(bndbox.xmax.text)
                         ymax = int(bndbox.ymax.text)
                         try:
-                            if int(obj.find('ID', recursive=False).text) == int(IDs[0]):
-                                target_id = int(IDs[0])
+                            if int(obj.find('ID', recursive=False).text) == int(IDs):
+                                target_id = int(IDs)
                             else:
                                 target_id = int(99)
 
@@ -1120,7 +1144,7 @@ class DataGenerator:
             # Compose the output.
             # #########################################################################################
             # print(batch_filenames)
-            # np.save('outputs/predder.npy', [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded_1,"predictions_2": batch_y_encoded_2,"predictions_1_to_2": np.concatenate([batch_y_encoded_1,batch_y_encoded_2],2),"predictions_2_to_1": np.concatenate([batch_y_encoded_2,batch_y_encoded_1],2)}])
+            np.save('outputs/predder.npy', [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded_1,"predictions_2": batch_y_encoded_2,"predictions_1_to_2": np.concatenate([batch_y_encoded_1,batch_y_encoded_2],2),"predictions_2_to_1": np.concatenate([batch_y_encoded_2,batch_y_encoded_1],2)},batch_filenames])
             yield [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded_1,"predictions_2": batch_y_encoded_2,"predictions_1_to_2": np.concatenate([batch_y_encoded_1,batch_y_encoded_2],2),"predictions_2_to_1": np.concatenate([batch_y_encoded_2,batch_y_encoded_1],2)}]
 
             # yield [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded_1,"predictions_2": batch_y_encoded_2}]
