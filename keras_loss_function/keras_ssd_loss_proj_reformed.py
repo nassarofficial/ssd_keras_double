@@ -21,8 +21,9 @@ import tensorflow as tf
 import math
 import keras.backend as K
 import numpy as np
-from bounding_box_utils.bounding_box_utils import iou, convert_coordinates
-from ssd_encoder_decoder.matching_utils import match_bipartite_greedy, match_multi
+from bounding_box_utils.bounding_box_utils_tf import tf_iou
+from bounding_box_utils.bounding_box_utils import convert_coordinates, iou_float
+from ssd_encoder_decoder.matching_utils import match_bipartite_greedy32,match_bipartite_greedy
 
 
 
@@ -190,8 +191,9 @@ class SSDLoss_proj:
                 y_true_2_new = tf.expand_dims(y_true_2_new, 0)
 
                 y_pred_1_new = y_pred_1[i,:,-16:-12]
-                iou_out = tf.py_func(iou, [y_pred_1_new,tf.convert_to_tensor(y_true_new[0,:,-16:-12])], tf.float64, name="iou_out")
-                bipartite_matches = tf.py_func(match_bipartite_greedy, [iou_out], tf.int64, name="bipartite_matches")
+                # iou_out = tf.py_func(iou_float, [y_pred_1_new,y_true_new[0,:,-16:-12]], tf.float32, name="iou_out")
+                iou_out = tf_iou(y_pred_1_new,y_true_new[0,:,-16:-12])
+                bipartite_matches = tf.py_func(match_bipartite_greedy32, [iou_out], tf.int32, name="bipartite_matches")
 
 
                 out = tf.gather(y_pred_2[i,:,:], [bipartite_matches], axis=0, name="out")
@@ -210,7 +212,7 @@ class SSDLoss_proj:
             return pred, gt
 
 
-        y_pred_out, y_true_out = matcher(y_true_1,y_pred_1,y_true_2,y_pred_2, 4)
+        y_pred_out, y_true_out = matcher(y_true_1,y_pred_1,y_true_2,y_pred_2, 1)
 
         batch_size = tf.shape(y_pred_out)[0] # Output dtype: tf.int32
         n_boxes = tf.shape(y_pred_out)[1] # Output dtype: tf.int32, note that `n_boxes` in this context denotes the total number of boxes per image, not the number of boxes per cell.
