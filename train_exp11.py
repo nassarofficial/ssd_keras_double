@@ -90,8 +90,6 @@ def Accuracy(y_true, y_pred):
     '''Calculates the mean accuracy rate across all predictions for
     multiclass classification problems.
     '''
-    print("y_pred: ",y_pred)
-    print("y_true: ",y_true)
     y_true = y_true[:,:,:18]
     y_pred = y_pred[:,:,:18]
 
@@ -101,18 +99,19 @@ def Accuracy(y_true, y_pred):
 adam = Adam(lr=0.0001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
 
 ssd_loss1 = SSDLoss(neg_pos_ratio=3, alpha=1.0)
-ssd_loss2 = SSDLoss(neg_pos_ratio=3, alpha=1.0)
+# ssd_loss2 = SSDLoss(neg_pos_ratio=3, alpha=1.0)
 ssd_loss3 = SSDLoss_proj(neg_pos_ratio=3, alpha=1.0)
-ssd_loss4 = SSDLoss_proj(neg_pos_ratio=3, alpha=1.0)
+# ssd_loss4 = SSDLoss_proj(neg_pos_ratio=3, alpha=1.0)
 
 losses = {
     "predictions_1": ssd_loss1.compute_loss,
     "predictions_2": ssd_loss1.compute_loss,
     "predictions_1_to_2": ssd_loss3.compute_loss,
+    "predictions_2_to_1": ssd_loss3.compute_loss
 }
 
 # lossWeights = {"predictions_1": 1.0,"predictions_2": 1.0,"predictions_1_to_2": 1.0,"predictions_2_to_1": 1.0}
-lossWeights = {"predictions_1": 1.0,"predictions_2": 1.0,"predictions_1_to_2": 1.0}
+lossWeights = {"predictions_1": 1.0,"predictions_2": 1.0,"predictions_1_to_2": 1.0,"predictions_2_to_1": 1.0}
 
 # MetricstDict = {"predictions_1": Accuracy,"predictions_2": Accuracy, "predictions_1_proj": Accuracy_Proj,"predictions_2_proj": Accuracy_Proj}
 # lossWeights = {"predictions_1": 1.0,"predictions_2": 1.0}

@@ -137,25 +137,26 @@ class SSDLoss_proj:
         def gt_rem(pred, gt):
             # predval = tf.shape(pred)
             # gtval = tf.shape(gt)
-            # val = tf.subtract(tf.shape(pred)[1],tf.shape(gt)[1], name="gt_rem_sub")
-            gt = tf.slice(gt, [0, 0, 0], [1, tf.shape(pred)[1], 18],name="rem_slice")
+            val = tf.subtract(tf.shape(pred)[1],tf.shape(gt)[1])
+            gt = tf.slice(gt, [0, 0, 0], [1, tf.shape(pred)[0], 18],name="rem_slice")
             return gt
 
         def gt_add(pred, gt):
             a = tf.shape(pred)[1]
             b = tf.shape(gt)[1]
-            val = tf.subtract(tf.shape(pred),tf.shape(gt), name="gt_add_sub")
-            val = tf.cast(val[1], tf.int32, name="gt_add_cast")
+
+            val = tf.subtract(tf.shape(pred),tf.shape(gt))
+            val = tf.cast(val[1], tf.int32)
             ext = tf.slice(gt, [0, 0, 0], [1, 1, 18], name="add_slice")
             multiply = [1,val,1]
-            ext = tf.tile(ext, multiply, name="tiler")
+            ext = tf.tile(ext, multiply)
             gt = K.concatenate([ext,gt], axis=1)
             return gt
 
         def equalalready(gt, pred): return pred
 
         def make_equal(pred, gt):
-            equal_tensor = tf.cond(tf.less(tf.shape(pred)[1],tf.shape(gt)[1]), lambda: gt_rem(pred, gt), lambda: gt_add(pred, gt), name="make_equal_cond")
+            equal_tensor = tf.cond(tf.shape(pred)[1] < tf.shape(gt)[1], lambda: gt_rem(pred, gt), lambda: gt_add(pred, gt), name="make_equal_cond")
             return equal_tensor
 
 
@@ -164,42 +165,40 @@ class SSDLoss_proj:
             gt = 0
 
             for i in range(bsz):
-                
-                filterer = tf.where(tf.not_equal(y_true_1[i,:,-4],99), name="filterer")
-                filterer_2 = tf.where(tf.not_equal(y_true_2[i,:,-4],99), name="filterer_2")
+                filterer = tf.where(tf.not_equal(y_true_1[i,:,-4],99))
+                filterer_2 = tf.where(tf.not_equal(y_true_2[i,:,-4],99))
 
-                y_true_new = tf.gather_nd(y_true_1[i,:,:],filterer, name="y_true_new")            
-                y_true_new = tf.expand_dims(y_true_new, 0, name="y_true_new1")
-                
-                y_true_2_new = tf.gather_nd(y_true_2[i,:,:],filterer_2, name="y_true_2_new")
-                y_true_2_new = tf.expand_dims(y_true_2_new, 0, name="y_true_2_new1")
+                y_true_new = tf.gather_nd(y_true_1[i,:,:],filterer)            
+                y_true_new = tf.expand_dims(y_true_new, 0)
 
-                set1 = tf.cast(y_true_new[i,:,-4],dtype=tf.int32, name="set1")
-                set2 = tf.cast(y_true_2_new[i,:,-4],dtype=tf.int32, name="set2")
-                
-                set11 = tf.identity(set1[None,:], name="set11")
-                set22 = tf.identity(set2[None,:], name="set22")
+                y_true_2_new = tf.gather_nd(y_true_2[i,:,:],filterer_2)
+                y_true_2_new = tf.expand_dims(y_true_2_new, 0)
 
-                id_pick = tf.sets.set_intersection(set11, set22)
+                set1 = tf.cast(y_true_new[:,:,-4],dtype=tf.int32)
+                set2 = tf.cast(y_true_2_new[:,:,-4],dtype=tf.int32)
 
-                id_pick = tf.cast(id_pick.values[0],dtype=tf.float32, name="picker")
+                id_pick = tf.sets.set_intersection(set1[None,:], set2[None, :])
+                id_pick = tf.cast(id_pick.values[0],dtype=tf.float32)
                             
-                filterer = tf.where(tf.equal(y_true_1[i,:,-4],id_pick), name="filterer1")
-                filterer_2 = tf.where(tf.equal(y_true_2[i,:,-4],id_pick), name="filterer_21")
+                filterer = tf.where(tf.equal(y_true_1[i,:,-4],id_pick))
+                filterer_2 = tf.where(tf.equal(y_true_2[i,:,-4],id_pick))
 
-                y_true_new = tf.gather_nd(y_true_1[i,:,:],filterer, name="y_true_new")            
-                y_true_new = tf.expand_dims(y_true_new, 0, name="y_true_new")
+                y_true_new = tf.gather_nd(y_true_1[i,:,:],filterer)            
+                y_true_new = tf.expand_dims(y_true_new, 0)
                 
-                y_true_2_new = tf.gather_nd(y_true_2[i,:,:],filterer_2, name="y_true_2_new")
-                y_true_2_new = tf.expand_dims(y_true_2_new, 0, name="y_true_2_new1")
-                
-                iou_out = tf.py_func(iou, [y_pred_1[i,:,-16:-12], y_true_new[i,:,-16:-12]], tf.float64, name="iou_out")
+                y_true_2_new = tf.gather_nd(y_true_2[i,:,:],filterer_2)
+                y_true_2_new = tf.expand_dims(y_true_2_new, 0)
+
+                y_pred_1_new = y_pred_1[i,:,-16:-12]
+                iou_out = tf.py_func(iou, [y_pred_1_new,tf.convert_to_tensor(y_true_new[0,:,-16:-12])], tf.float64, name="iou_out")
                 bipartite_matches = tf.py_func(match_bipartite_greedy, [iou_out], tf.int64, name="bipartite_matches")
+
+
                 out = tf.gather(y_pred_2[i,:,:], [bipartite_matches], axis=0, name="out")
                 
-
-
                 box_comparer = tf.reduce_all(tf.equal(tf.shape(out)[1], tf.shape(y_true_2_new)[1]), name="box_comparer")
+
+
                 y_true_2_equal = tf.cond(box_comparer, lambda: equalalready(out, y_true_2_new), lambda: make_equal(out, y_true_2_new), name="y_true_cond")
 
                 if i != 0:
@@ -210,15 +209,16 @@ class SSDLoss_proj:
                     gt = y_true_2_equal    
             return pred, gt
 
-        y_pred_out, y_true_out = matcher(y_true_1,y_pred_1,y_true_2,y_pred_2, 1)
+
+        y_pred_out, y_true_out = matcher(y_true_1,y_pred_1,y_true_2,y_pred_2, 4)
 
         batch_size = tf.shape(y_pred_out)[0] # Output dtype: tf.int32
-        n_boxes = tf.shape(y_true_out)[1] # Output dtype: tf.int32, note that `n_boxes` in this context denotes the total number of boxes per image, not the number of boxes per cell.
+        n_boxes = tf.shape(y_pred_out)[1] # Output dtype: tf.int32, note that `n_boxes` in this context denotes the total number of boxes per image, not the number of boxes per cell.
 
         # 1: Compute the losses for class and box predictions for every box.
 
-        classification_loss = tf.to_float(self.log_loss(y_true_out[:,:,:-16], y_pred_out[:,:,:-16])) # Output shape: (batch_size, n_boxes)
-        localization_loss = tf.to_float(self.smooth_L1_loss(y_true_out[:,:,-16:-12], y_pred_out[:,:,-16:-12])) # Output shape: (batch_size, n_boxes)
+        classification_loss = tf.to_float(self.log_loss(y_true_out[:,:,:-16], y_pred_out[:,:,:-16]), name="classification") # Output shape: (batch_size, n_boxes)
+        localization_loss = tf.to_float(self.smooth_L1_loss(y_true_out[:,:,-16:-12], y_pred_out[:,:,-16:-12]),name="localization_loss") # Output shape: (batch_size, n_boxes)
         # print("classification_loss: ", classification_loss)
         # return localization_loss
         
@@ -227,7 +227,7 @@ class SSDLoss_proj:
 
         # Create masks for the positive and negative ground truth classes.
         negatives = y_true_out[:,:,0] # Tensor of shape (batch_size, n_boxes)
-        positives = tf.to_float(tf.reduce_max(y_true_out[:,:,1:-16], axis=-1)) # Tensor of shape (batch_size, n_boxes)
+        positives = tf.to_float(tf.reduce_max(y_true_out[:,:,1:-16], axis=-1),name="positives") # Tensor of shape (batch_size, n_boxes)
         # # Count the number of positive boxes (classes 1 to n) in y_true across the whole batch.
         n_positive = tf.reduce_sum(positives)
 

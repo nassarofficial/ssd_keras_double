@@ -1144,7 +1144,7 @@ class DataGenerator:
             # Compose the output.
             # #########################################################################################
             # print(batch_filenames)
-            np.save('outputs/predder.npy', [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded_1,"predictions_2": batch_y_encoded_2,"predictions_1_to_2": np.concatenate([batch_y_encoded_1,batch_y_encoded_2],2),"predictions_2_to_1": np.concatenate([batch_y_encoded_2,batch_y_encoded_1],2)},batch_filenames])
+            # np.save('outputs/predder.npy', [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded_1,"predictions_2": batch_y_encoded_2,"predictions_1_to_2": np.concatenate([batch_y_encoded_1,batch_y_encoded_2],2),"predictions_2_to_1": np.concatenate([batch_y_encoded_2,batch_y_encoded_1],2)},batch_filenames])
             yield [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded_1,"predictions_2": batch_y_encoded_2,"predictions_1_to_2": np.concatenate([batch_y_encoded_1,batch_y_encoded_2],2),"predictions_2_to_1": np.concatenate([batch_y_encoded_2,batch_y_encoded_1],2)}]
 
             # yield [[batch_X, batch_Z, np.array(batch_geox,dtype=np.float64), np.array(batch_geoz,dtype=np.float64)], {"predictions_1": batch_y_encoded_1,"predictions_2": batch_y_encoded_2}]
