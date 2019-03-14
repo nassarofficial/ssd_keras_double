@@ -135,55 +135,8 @@ class SSDLoss_proj:
         y_true_2 = y_true[:,:,18:]
         y_pred_2 = y_pred[:,:,18:]
 
-        def gt_rem(pred, gt):
-            val = tf.subtract(tf.shape(pred)[1], tf.shape(gt)[1],name="gt_rem_subtract")
-            gt = tf.slice(gt, [0, 0, 0], [1, tf.shape(pred)[1], 18],name="rem_slice")
-            return gt
-
-        def gt_add(pred, gt):
-            #add to gt
-            val = tf.subtract(tf.shape(pred)[1], tf.shape(gt)[1],name="gt_add_subtract")
-            ext = tf.slice(gt, [0, 0, 0], [1, val, 18], name="add_slice")
-            gt = K.concatenate([ext,gt], axis=1)
-            return gt
-
-        def equalalready(gt, pred): return pred
-
-        def make_equal(pred, gt):
-            equal_tensor = tf.cond(tf.shape(pred)[1] < tf.shape(gt)[1], lambda: gt_rem(pred, gt), lambda: gt_add(pred, gt), name="make_equal_cond")
-            return equal_tensor
-
-
-        def matcher(y_true_1,y_pred_1,y_true_2,y_pred_2, bsz):
-            pred = 0
-            gt = 0
-            for i in range(bsz):
-                filterer = tf.where(tf.not_equal(y_true_1[i,:,-4],99))
-                y_true_new = tf.gather_nd(y_true_1[i,:,:],filterer)
-                y_true_new = tf.expand_dims(y_true_new, 0)
-                
-                iou_out = tf.py_func(iou, [y_pred_1[i,:,-16:-12],tf.convert_to_tensor(y_true_new[i,:,-16:-12])], tf.float64, name="iou_out")
-                bipartite_matches = tf.py_func(match_bipartite_greedy, [iou_out], tf.int64, name="bipartite_matches")
-                out = tf.gather(y_pred_2[i,:,:], [bipartite_matches], axis=0, name="out")
-                
-                filterer_2 = tf.where(tf.not_equal(y_true_2[i,:,-4],99))
-                y_true_2_new = tf.gather_nd(y_true_2[i,:,:],filterer_2)
-                y_true_2_new = tf.expand_dims(y_true_2_new, 0)
-
-                box_comparer = tf.reduce_all(tf.equal(tf.shape(out)[1], tf.shape(y_true_2_new)[1]), name="box_comparer")
-                y_true_2_equal = tf.cond(box_comparer, lambda: equalalready(out, y_true_2_new), lambda: make_equal(out, y_true_2_new), name="y_true_cond")
-
-                if i != 0:
-                    pred = K.concatenate([pred,out], axis=-1)
-                    gt = K.concatenate([gt,y_true_2_equal], axis=0)
-                else:
-                    pred = out
-                    gt = y_true_2_equal
-            return pred, gt
-
-        y_pred_out, y_true_out = matcher(y_true_1,y_pred_1,y_true_2,y_pred_2,1)
-
-
+        y_pred_out = y_pred_2
+        y_true_out = y_true_2
         # print("y_true: ", y_true)
         # print("y_pred: ", y_pred)      
 

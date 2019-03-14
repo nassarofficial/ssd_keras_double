@@ -10,9 +10,9 @@ from matplotlib import pyplot as plt
 from keras.preprocessing import image
 from imageio import imread
 
-from models.keras_ssd300 import ssd_300
+from models.keras_ssd300_mod import ssd_300
 from keras_loss_function.keras_ssd_loss_mod import SSDLoss
-from keras_loss_function.keras_ssd_loss_proj_reformed import SSDLoss_proj
+from keras_loss_function.keras_ssd_loss_proj import SSDLoss_proj
 
 from keras_layers.keras_layer_AnchorBoxes import AnchorBoxes
 from keras_layers.keras_layer_DecodeDetections import DecodeDetections
@@ -35,7 +35,6 @@ from bounding_box_utils.bounding_box_utils import iou, convert_coordinates
 from ssd_encoder_decoder.matching_utils import match_bipartite_greedy, match_multi
 import random
 import tensorflow as tf
-np.random.seed(1337)
 
 img_height = 300 # Height of the model input images
 img_width = 600 # Width of the model input images
@@ -79,19 +78,25 @@ model = ssd_300(image_size=(img_height, img_width, img_channels),
                 subtract_mean=mean_color,
                 swap_channels=swap_channels)
 
+# 2: Load some weights into the model.
+
+# TODO: Set the path to the weights you want to load.
 weights_path = 'weights/VGG_ILSVRC_16_layers_fc_reduced.h5'
 
 model.load_weights(weights_path, by_name=True)
 
 
 def Accuracy(y_true, y_pred):
+    '''Calculates the mean accuracy rate across all predictions for
+    multiclass classification problems.
+    '''
     y_true = y_true[:,:,:18]
     y_pred = y_pred[:,:,:18]
 
     return K.mean(K.equal(K.argmax(y_true[:,:,:-4], axis=-1),
                   K.argmax(y_pred[:,:,:-4], axis=-1)))
 
-adam = Adam(lr=0.00001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
+adam = Adam(lr=0.0001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
 
 ssd_loss1 = SSDLoss(neg_pos_ratio=3, alpha=1.0)
 ssd_loss2 = SSDLoss(neg_pos_ratio=3, alpha=1.0)
@@ -101,15 +106,23 @@ ssd_loss4 = SSDLoss_proj(neg_pos_ratio=3, alpha=1.0)
 losses = {
     "predictions_1": ssd_loss1.compute_loss,
     "predictions_2": ssd_loss2.compute_loss,
-    "predictions_1_proj": ssd_loss3.compute_loss,
-    "predictions_2_proj": ssd_loss4.compute_loss
-
+    "predictions_1_to_2": ssd_loss3.compute_loss,
+    "predictions_2_to_1": ssd_loss4.compute_loss
 }
-lossWeights = {"predictions_1": 1.0,"predictions_2": 1.0,"predictions_1_proj": 1.0,"predictions_2_proj": 1.0}
+
+# lossWeights = {"predictions_1": 1.0,"predictions_2": 1.0,"predictions_1_to_2": 1.0,"predictions_2_to_1": 1.0}
+lossWeights = {"predictions_1": 1.0,"predictions_2": 1.0,"predictions_1_to_2": 1.0,"predictions_2_to_1": 1.0}
+
+# MetricstDict = {"predictions_1": Accuracy,"predictions_2": Accuracy, "predictions_1_proj": Accuracy_Proj,"predictions_2_proj": Accuracy_Proj}
+# lossWeights = {"predictions_1": 1.0,"predictions_2": 1.0}
+# MetricstDict = {"predictions_1": Accuracy,"predictions_2": Accuracy,"predictions_1":MSE_geo,"predictions_1":MSE_dist,"predictions_2":MSE_geo,"predictions_2":MSE_dist}
 MetricstDict = {"predictions_1": Accuracy,"predictions_2": Accuracy}
 
 model.compile(optimizer=adam, loss=losses, loss_weights=lossWeights, metrics=MetricstDict) 
+# model.compile(optimizer=adam, loss=losses, loss_weights=lossWeights) 
 
+# train_dataset = DataGenerator(load_images_into_memory=False, hdf5_dataset_path='dataset_pascal_voc_07+12_trainval.h5')
+# val_dataset = DataGenerator(load_images_into_memory=False, hdf5_dataset_path='dataset_pascal_voc_07_test.h5')
 train_dataset = DataGenerator(load_images_into_memory=False, hdf5_dataset_path=None)
 val_dataset = DataGenerator(load_images_into_memory=False, hdf5_dataset_path=None)
 
@@ -118,17 +131,19 @@ val_dataset_1 = DataGenerator(load_images_into_memory=False, hdf5_dataset_path=N
 
 
 VOC_2007_images_dir      = '../datasets/Images/'
-VOC_2007_annotations_dir      = '../datasets/VOC/Pasadena/Annotations_Multi/'
 
-# VOC_2007_trainval_image_set_filename = '../datasets/VOC/Pasadena/ImageSets/Main/reid_neu/train_few.txt'
-# VOC_2007_val_image_set_filename      = '../datasets/VOC/Pasadena/ImageSets/Main/reid_neu/val_few.txt'
-# VOC_2007_test_image_set_filename     = '../datasets/VOC/Pasadena/ImageSets/Main/reid_neu/test_few.txt'
+# The directories that contain the annotations.
+VOC_2007_annotations_dir      = '../datasets/VOC/Pasadena/Annotations_Multi/'
 
 VOC_2007_trainval_image_set_filename = '../datasets/VOC/Pasadena/ImageSets/Main/reid_neu/train.txt'
 VOC_2007_val_image_set_filename      = '../datasets/VOC/Pasadena/ImageSets/Main/reid_neu/val.txt'
 VOC_2007_test_image_set_filename     = '../datasets/VOC/Pasadena/ImageSets/Main/reid_neu/test.txt'
 
+# VOC_2007_trainval_image_set_filename = '../datasets/VOC/Pasadena/ImageSets/Main/reid_neu/train_few.txt'
+# VOC_2007_val_image_set_filename      = '../datasets/VOC/Pasadena/ImageSets/Main/reid_neu/val_few.txt'
+# VOC_2007_test_image_set_filename     = '../datasets/VOC/Pasadena/ImageSets/Main/reid_neu/test_one.txt'
 
+# The XML parser needs to now what object class names to look for and in which order to map them to integers.
 classes = ['background',
            'tree']
 
@@ -160,6 +175,9 @@ ssd_data_augmentation = SSDDataAugmentation_modified(img_height=img_height,
 convert_to_3_channels = ConvertTo3Channels_Modified()  
 resize = Resize_Modified(height=img_height, width=img_width)
 
+# 5: Instantiate an encoder that can encode ground truth labels into the format needed by the SSD loss function.
+
+# The encoder constructor needs the spatial dimensions of the model's predictor layers to create the anchor boxes.
 predictor_sizes = [model.get_layer('conv4_3_norm_mbox_conf__1').output_shape[1:3],
                    model.get_layer('fc7_mbox_conf__1').output_shape[1:3],
                    model.get_layer('conv6_2_mbox_conf__1').output_shape[1:3],
@@ -183,6 +201,7 @@ ssd_input_encoder = SSDInputEncoder(img_height=img_height,
                                     neg_iou_limit=0.5,
                                     normalize_coords=normalize_coords)
 
+# 6: Create the generator handles that will be passed to Keras' `fit_generator()` function.
 
 train_generator = train_dataset.generate(batch_size=batch_size,
                                          shuffle=False,
@@ -201,7 +220,9 @@ val_generator = val_dataset.generate(batch_size=batch_size,
                                               'encoded_labels'},
                                      keep_images_without_gt=False)
 
+# Get the number of samples in the training and validations datasets.
 train_dataset_size = train_dataset.get_dataset_size()
+
 val_dataset_size   = val_dataset.get_dataset_size()
 
 print("Number of images in the training dataset:\t{:>6}".format(train_dataset_size))
@@ -218,12 +239,10 @@ def lr_schedule(epoch):
         return 0.00001
 
 
-initial_epoch   = 0
-final_epoch     = 500
-steps_per_epoch = 1000
+# Define model callbacks.
 
-
-model_checkpoint = ModelCheckpoint(filepath='checkpoints/train_10_double_ssd300_pascal_07+12_epoch-{epoch:02d}_loss-{loss:.4f}_val_loss-{val_loss:.4f}.h5',
+# TODO: Set the filepath under which you want to save the model.
+model_checkpoint = ModelCheckpoint(filepath='checkpoints/train_1_epoch-{epoch:02d}_loss-{loss:.4f}_val_loss-{val_loss:.4f}.h5',
                                    monitor='val_loss',
                                    verbose=1,
                                    save_best_only=True,
@@ -233,7 +252,7 @@ model_checkpoint = ModelCheckpoint(filepath='checkpoints/train_10_double_ssd300_
 #model_checkpoint.best = 
 tbCallBack = TensorBoard(log_dir='./Graph', histogram_freq=0, write_graph=True, write_images=True)
 
-csv_logger = CSVLogger(filename='ssd300_pascal_07+12_training_log.csv',
+csv_logger = CSVLogger(filename='train_1_ssd300_pascal_07+12_training_log.csv',
                        separator=',',
                        append=True)
 
@@ -245,7 +264,6 @@ early_stopping = EarlyStopping(monitor='val_loss',
                               verbose=0, mode='auto')
 
 terminate_on_nan = TerminateOnNaN()
-# printer_callback = prediction_history()
 # custom_los = custom_loss()
 callbacks = [
             model_checkpoint,
