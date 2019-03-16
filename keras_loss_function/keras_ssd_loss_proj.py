@@ -223,11 +223,7 @@ class SSDLoss_proj:
                     gt = y_true_2_equal    
             return pred, gt
 
-        try:
-            y_pred_out, y_true_out = matcher(y_true_1,y_pred_1,y_true_2,y_pred_2, 1)
-        except:
-            y_true_out = y_true[:,:,18:]
-            y_pred_out = y_pred[:,:,18:]
+        y_pred_out, y_true_out = matcher(y_true_1,y_pred_1,y_true_2,y_pred_2, 1)
 
         batch_size = tf.shape(y_pred_out)[0] # Output dtype: tf.int32
         n_boxes = tf.shape(y_pred_out)[1] # Output dtype: tf.int32, note that `n_boxes` in this context denotes the total number of boxes per image, not the number of boxes per cell.
